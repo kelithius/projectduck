@@ -1,0 +1,45 @@
+{
+  "title": "ProjectDuck",
+  "subtitle": "File Browser",
+  "theme": {
+    "switch": "Toggle Theme",
+    "light": "Light Mode",
+    "dark": "Dark Mode"
+  },
+  "fileTree": {
+    "title": "File Explorer",
+    "searchPlaceholder": "Search files...",
+    "noFiles": "No files found",
+    "loadingError": "Error loading files"
+  },
+  "fileViewer": {
+    "selectFile": "Please select a file to view",
+    "loading": "Loading...",
+    "error": "Failed to load file content",
+    "fileSize": "File Size",
+    "lastModified": "Last Modified",
+    "fileType": "File Type",
+    "imageAlt": "Image Preview",
+    "videoError": "Your browser does not support video playback",
+    "unsupportedFile": "Unsupported file format"
+  },
+  "markdown": {
+    "tocTitle": "Table of Contents"
+  },
+  "language": {
+    "switch": "Switch Language",
+    "zh_tw": "繁體中文",
+    "en": "English"
+  },
+  "status": {
+    "ready": "Ready",
+    "loading": "Loading",
+    "error": "Error"
+  },
+  "buttons": {
+    "refresh": "Refresh",
+    "back": "Back",
+    "download": "Download",
+    "fullscreen": "Fullscreen"
+  }
+}

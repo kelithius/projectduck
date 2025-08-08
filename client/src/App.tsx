@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ConfigProvider, theme, App as AntdApp } from 'antd';
+import { I18nextProvider } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import i18n from '@/i18n';
 
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -32,20 +34,22 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        token: {
-          colorPrimary: '#1890ff',
-        },
-      }}
-    >
-      <AntdApp>
-        <div className="App" style={{ height: '100vh' }}>
-          <AppLayout />
-        </div>
-      </AntdApp>
-    </ConfigProvider>
+    <I18nextProvider i18n={i18n}>
+      <ConfigProvider
+        theme={{
+          algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
+          token: {
+            colorPrimary: '#1890ff',
+          },
+        }}
+      >
+        <AntdApp>
+          <div className="App" style={{ height: '100vh' }}>
+            <AppLayout />
+          </div>
+        </AntdApp>
+      </ConfigProvider>
+    </I18nextProvider>
   );
 };
 

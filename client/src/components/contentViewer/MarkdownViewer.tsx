@@ -56,17 +56,21 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
     .markdown-content pre {
       background-color: ${darkMode ? '#0d1117' : '#f6f8fa'} !important;
       border: 1px solid ${darkMode ? '#21262d' : '#d0d7de'} !important;
+      font-size: 13px !important;
+      line-height: 1.5 !important;
     }
     .markdown-content pre code.hljs {
       background-color: ${darkMode ? '#0d1117' : '#f6f8fa'} !important;
       color: ${darkMode ? '#e6edf3' : '#24292f'} !important;
+      font-size: 13px !important;
+      line-height: 1.5 !important;
     }
     .markdown-content code:not(.hljs) {
       background-color: ${darkMode ? '#6e768166' : '#afb8c133'} !important;
       color: ${darkMode ? '#e6edf3' : '#24292f'} !important;
       padding: 2px 4px !important;
       border-radius: 3px !important;
-      font-size: 85% !important;
+      font-size: 13px !important;
     }
     
     /* 深色模式下的語法高亮顏色 */
@@ -227,7 +231,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
                       color: darkMode ? '#e6e6e6' : '#000',
                       padding: '2px 4px',
                       borderRadius: '3px',
-                      fontSize: '85%'
+                      fontSize: '13px'
                     }}
                     {...props}
                   >
@@ -274,7 +278,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
                     padding: '16px',
                     borderRadius: '6px',
                     overflow: 'auto',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     lineHeight: '1.5',
                     border: `1px solid ${darkMode ? '#404040' : '#d0d7de'}`,
                     margin: 0

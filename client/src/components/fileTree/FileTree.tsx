@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tree, Spin, message, Input } from 'antd';
 import type { TreeDataNode } from 'antd/es/tree';
+import { useTranslation } from 'react-i18next';
 import { FileItem } from '@/types';
 import apiService from '@/services/api';
 import { FileIcon } from './FileIcon';
@@ -13,6 +14,7 @@ interface FileTreeProps {
 }
 
 export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = false }) => {
+  const { t } = useTranslation();
   const [treeData, setTreeData] = useState<TreeDataNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -98,10 +100,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = fal
         const nodes = response.data.items.map(fileItemToTreeNode);
         setTreeData(nodes);
       } else {
-        message.error(response.error || '載入目錄失敗');
+        message.error(response.error || t('fileTree.loadingError'));
       }
     } catch (error) {
-      message.error('載入目錄失敗');
+      message.error(t('fileTree.loadingError'));
       console.error('Failed to load directory:', error);
     } finally {
       setLoading(false);
@@ -122,10 +124,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = fal
           updateTreeData(prevData, key as string, childNodes)
         );
       } else {
-        message.error(response.error || '載入子目錄失敗');
+        message.error(response.error || t('fileTree.loadingError'));
       }
     } catch (error) {
-      message.error('載入子目錄失敗');
+      message.error(t('fileTree.loadingError'));
       console.error('Failed to load subdirectory:', error);
     }
   };
@@ -218,7 +220,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = fal
   return (
     <div style={{ padding: '16px' }}>
       <Search
-        placeholder="搜尋檔案..."
+        placeholder={t('fileTree.searchPlaceholder')}
         onChange={e => onSearch(e.target.value)}
         style={{ marginBottom: '16px' }}
       />

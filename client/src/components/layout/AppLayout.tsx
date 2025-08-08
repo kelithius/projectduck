@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Spin, Switch, Space, App } from 'antd';
 import { BulbOutlined, MoonOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { FileTree } from '@/components/fileTree/FileTree';
@@ -13,6 +14,7 @@ const { Title } = Typography;
 
 export const AppLayout: React.FC = () => {
   const { message } = App.useApp();
+  const { t } = useTranslation();
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -48,7 +50,7 @@ export const AppLayout: React.FC = () => {
         }
       } catch (error) {
         if (!isCancelled) {
-          message.error('無法連接到後端服務');
+          message.error(t('fileTree.loadingError'));
           setLoading(false);
         }
       }
@@ -119,7 +121,7 @@ export const AppLayout: React.FC = () => {
               color: darkMode ? '#fff' : '#1890ff' 
             }}
           >
-            ProjectDuck
+            {t('title')}
           </Title>
         </Space>
         

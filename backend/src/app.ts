@@ -15,6 +15,10 @@ app.use(cors({
 // JSON 解析中間件
 app.use(express.json());
 
+// 服務靜態檔案 (React 打包後的檔案)
+const publicPath = path.join(__dirname, '..', '..', 'public');
+app.use(express.static(publicPath));
+
 // 設定基礎目錄 (預設使用 example 目錄)
 if (!process.env.BASE_PATH) {
   process.env.BASE_PATH = path.join(process.cwd(), '..', 'example');
@@ -32,12 +36,18 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404 處理
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Route not found'
-  });
+// SPA 支援 - 所有非 API 路由都返回 index.html
+app.get('*', (req, res) => {
+  // 如果是 API 路由但沒有匹配，返回 404
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(404).json({
+      success: false,
+      error: 'API route not found'
+    });
+  }
+  
+  // 否則返回 React SPA 的 index.html
+  return res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // 錯誤處理中間件

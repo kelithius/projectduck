@@ -1,0 +1,45 @@
+{
+  "title": "ProjectDuck",
+  "subtitle": "文件檢視器",
+  "theme": {
+    "switch": "切換主題",
+    "light": "淺色模式",
+    "dark": "深色模式"
+  },
+  "fileTree": {
+    "title": "檔案瀏覽",
+    "searchPlaceholder": "搜尋檔案...",
+    "noFiles": "沒有找到檔案",
+    "loadingError": "載入檔案時發生錯誤"
+  },
+  "fileViewer": {
+    "selectFile": "請選擇一個檔案來檢視",
+    "loading": "載入中...",
+    "error": "無法載入檔案內容",
+    "fileSize": "檔案大小",
+    "lastModified": "最後修改",
+    "fileType": "檔案類型",
+    "imageAlt": "圖片預覽",
+    "videoError": "您的瀏覽器不支援影片播放",
+    "unsupportedFile": "不支援的檔案格式"
+  },
+  "markdown": {
+    "tocTitle": "目錄"
+  },
+  "language": {
+    "switch": "切換語言",
+    "zh_tw": "繁體中文",
+    "en": "English"
+  },
+  "status": {
+    "ready": "就緒",
+    "loading": "載入中",
+    "error": "錯誤"
+  },
+  "buttons": {
+    "refresh": "重新載入",
+    "back": "返回",
+    "download": "下載",
+    "fullscreen": "全螢幕"
+  }
+}

@@ -72,7 +72,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ content, language, darkM
         customStyle={{
           margin: 0,
           backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
-          fontSize: '14px',
+          fontSize: '13px',
           lineHeight: '1.5',
           padding: '16px'
         }}

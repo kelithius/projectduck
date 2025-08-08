@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Spin, Alert, Typography, Divider, Tag } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { FileItem } from '@/types';
 import apiService from '@/services/api';
 import { MarkdownViewer } from './MarkdownViewer';
@@ -14,6 +15,7 @@ interface ContentViewerProps {
 }
 
 export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, darkMode = false }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +33,10 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
       if (response.success) {
         setContent(response.data.content);
       } else {
-        setError(response.error || '載入檔案失敗');
+        setError(response.error || t('fileViewer.error'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '載入檔案失敗');
+      setError(err instanceof Error ? err.message : t('fileViewer.error'));
     } finally {
       setLoading(false);
     }
@@ -88,11 +90,8 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
       }}>
         <div>
           <Title level={4} type="secondary">
-            請選擇一個檔案來檢視內容
+            {t('fileViewer.selectFile')}
           </Title>
-          <Text type="secondary">
-            在左側檔案樹中點選檔案即可在此區域顯示內容
-          </Text>
         </div>
       </div>
     );
@@ -160,7 +159,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
 
         {error && (
           <Alert
-            message="載入檔案失敗"
+            message={t('fileViewer.error')}
             description={error}
             type="error"
             showIcon
@@ -200,7 +199,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
                 <pre style={{ 
                   whiteSpace: 'pre-wrap',
                   fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   lineHeight: '1.5',
                   color: darkMode ? '#e6e6e6' : '#000',
                   backgroundColor: 'transparent'
@@ -218,8 +217,8 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
 
         {!loading && !error && fileType === 'other' && (
           <Alert
-            message="不支援的檔案類型"
-            description={`檔案類型 .${selectedFile.extension} 目前不支援預覽`}
+            message={t('fileViewer.unsupportedFile')}
+            description={`${t('fileViewer.fileType')}: .${selectedFile.extension}`}
             type="info"
             showIcon
           />
