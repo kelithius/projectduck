@@ -13,6 +13,10 @@ export interface DirectoryResponse {
   data: {
     path: string;
     items: FileItem[];
+    totalCount?: number;
+    hasMore?: boolean;
+    page?: number;
+    limit?: number;
   };
   error?: string;
 }

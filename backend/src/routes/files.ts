@@ -10,13 +10,20 @@ const router = express.Router();
 router.get('/directory', async (req, res) => {
   try {
     const path = (req.query.path as string) || '';
-    const items = await FileService.getDirectoryContents(path);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    
+    const result = await FileService.getDirectoryContents(path, page, limit);
     
     const response: DirectoryResponse = {
       success: true,
       data: {
         path,
-        items
+        items: result.items,
+        totalCount: result.totalCount,
+        hasMore: result.hasMore,
+        page,
+        limit
       }
     };
     

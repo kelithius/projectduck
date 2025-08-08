@@ -1,4 +1,5 @@
 import { DirectoryResponse, FileContentResponse, FileInfoResponse } from '@/types';
+import { cacheService } from './cache';
 
 const API_BASE_URL = '/api';
 
@@ -23,16 +24,38 @@ class ApiService {
    * 取得目錄內容
    */
   async getDirectory(path: string = ''): Promise<DirectoryResponse> {
+    const cacheKey = `directory:${path}`;
+    const cached = cacheService.get<DirectoryResponse>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
     const url = path ? `/directory?path=${encodeURIComponent(path)}` : '/directory';
-    return this.request<DirectoryResponse>(url);
+    const result = await this.request<DirectoryResponse>(url);
+    
+    // 快取目錄結果 2 分鐘
+    cacheService.set(cacheKey, result, 2);
+    return result;
   }
 
   /**
    * 取得檔案內容
    */
   async getFileContent(path: string): Promise<FileContentResponse> {
+    const cacheKey = `file-content:${path}`;
+    const cached = cacheService.get<FileContentResponse>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
     const encodedPath = encodeURIComponent(path);
-    return this.request<FileContentResponse>(`/file/content?path=${encodedPath}`);
+    const result = await this.request<FileContentResponse>(`/file/content?path=${encodedPath}`);
+    
+    // 快取檔案內容 5 分鐘
+    cacheService.set(cacheKey, result, 5);
+    return result;
   }
 
   /**

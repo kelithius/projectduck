@@ -3,12 +3,24 @@ import path from 'path';
 import mime from 'mime-types';
 import { SecurityService } from './securityService';
 import { FileItem, FileContentResponse, FileInfoResponse } from '../types';
+import { backendCacheService } from './cacheService';
 
 export class FileService {
   /**
    * 取得目錄內容列表
    */
-  static async getDirectoryContents(requestPath: string = ''): Promise<FileItem[]> {
+  static async getDirectoryContents(
+    requestPath: string = '', 
+    page: number = 1, 
+    limit: number = 100
+  ): Promise<{ items: FileItem[]; totalCount: number; hasMore: boolean }> {
+    // 檢查快取
+    const cacheKey = `directory:${requestPath}:${page}:${limit}`;
+    const cached = backendCacheService.get<{ items: FileItem[]; totalCount: number; hasMore: boolean }>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    
     const safePath = SecurityService.validatePath(requestPath);
     
     try {
@@ -37,7 +49,7 @@ export class FileService {
 
         fileItems.push(fileItem);
       }
-
+      
       // 排序：目錄在前，檔案在後，然後按名稱排序
       fileItems.sort((a, b) => {
         if (a.type !== b.type) {
@@ -46,7 +58,23 @@ export class FileService {
         return a.name.localeCompare(b.name);
       });
 
-      return fileItems;
+      // 實作分頁
+      const totalCount = fileItems.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedItems = fileItems.slice(startIndex, endIndex);
+      const hasMore = endIndex < totalCount;
+      
+      const result = {
+        items: paginatedItems,
+        totalCount,
+        hasMore
+      };
+      
+      // 快取結果 30 秒
+      backendCacheService.set(cacheKey, result, 30);
+      
+      return result;
     } catch (error) {
       throw new Error(`Failed to read directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -73,7 +101,7 @@ export class FileService {
 
       const mimeType = mime.lookup(safePath) || 'text/plain';
       const content = await fs.readFile(safePath, 'utf-8');
-
+      
       return {
         path: SecurityService.getRelativePath(safePath),
         content,

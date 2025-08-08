@@ -11,7 +11,8 @@ yarn-error.log*
 dist/
 build/
 out/
-/public/
+client/dist/
+backend/dist/
 
 # Environment variables
 .env
@@ -69,12 +70,6 @@ jspm_packages/
 
 # TypeScript cache
 *.tsbuildinfo
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
 
 # Temporary folders
 tmp/

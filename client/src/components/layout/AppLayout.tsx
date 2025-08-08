@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Layout, Typography, Spin, Switch, Space, App } from 'antd';
 import { BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { FileTree } from '@/components/fileTree/FileTree';
-import { ContentViewer } from '@/components/contentViewer/ContentViewer';
 import { FileItem } from '@/types';
 import apiService from '@/services/api';
+
+// 延遲載入 ContentViewer
+const ContentViewer = React.lazy(() => 
+  import('@/components/contentViewer/ContentViewer').then(module => ({
+    default: module.ContentViewer
+  }))
+);
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -158,7 +164,18 @@ export const AppLayout: React.FC = () => {
           
           <Allotment.Pane>
             <div style={{ height: '100%' }}>
-              <ContentViewer selectedFile={selectedFile} darkMode={darkMode} />
+              <Suspense fallback={
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%' 
+                }}>
+                  <Spin size="large" />
+                </div>
+              }>
+                <ContentViewer selectedFile={selectedFile} darkMode={darkMode} />
+              </Suspense>
             </div>
           </Allotment.Pane>
         </Allotment>

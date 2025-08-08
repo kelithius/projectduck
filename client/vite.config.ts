@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+  ],
   server: {
     port: 3000,
     proxy: {
@@ -26,5 +28,17 @@ export default defineConfig({
     outDir: '../public',
     sourcemap: true,
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // 將 Ant Design 分離為單獨的 chunk
+          'antd-vendor': ['antd'],
+          // 將 React 相關庫分離
+          'react-vendor': ['react', 'react-dom'],
+          // 其他第三方庫
+          'third-party': ['i18next', 'react-i18next', 'allotment']
+        }
+      }
+    }
   },
 })
