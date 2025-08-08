@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FileItem } from '@/types';
 import apiService from '@/services/api';
 import { FileIcon } from './FileIcon';
+import styles from './FileTree.module.css';
 
 const { Search } = Input;
 
@@ -41,23 +42,8 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = fal
       e.stopPropagation();
       
       if (item.type === 'file') {
-        // 處理檔案選擇
-        try {
-          const fileInfo = await apiService.getFileInfo(item.path);
-          if (fileInfo.success) {
-            const fileItem: FileItem = {
-              name: fileInfo.data.name,
-              path: fileInfo.data.path,
-              type: 'file',
-              size: fileInfo.data.size,
-              modified: fileInfo.data.modified,
-              extension: fileInfo.data.extension,
-            };
-            onFileSelect(fileItem);
-          }
-        } catch (error) {
-          console.error('Failed to get file info:', error);
-        }
+        // 處理檔案選擇 - 直接使用已有的資料，不需要重複請求
+        onFileSelect(item);
       } else {
         // 處理資料夾展開/收折
         if (isExpanded) {
@@ -218,24 +204,29 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = fal
   }
 
   return (
-    <div style={{ padding: '16px' }}>
-      <Search
-        placeholder={t('fileTree.searchPlaceholder')}
-        onChange={e => onSearch(e.target.value)}
-        style={{ marginBottom: '16px' }}
-      />
+    <div className={styles.fileTreeContainer}>
+      <div className={styles.searchWrapper}>
+        <Search
+          placeholder={t('fileTree.searchPlaceholder')}
+          onChange={e => onSearch(e.target.value)}
+        />
+      </div>
       
-      <Tree
-        loadData={onLoadData}
-        treeData={treeData}
-        titleRender={titleRender}
-        onExpand={onExpand}
-        expandedKeys={expandedKeys}
-        autoExpandParent={autoExpandParent}
-        showLine={{ showLeafIcon: false }}
-        style={{ backgroundColor: 'transparent' }}
-        selectable={false}
-      />
+      <div className={`${styles.cardContainer} ${darkMode ? styles.dark : ''}`}>
+        <div className={styles.treeWrapper}>
+          <Tree
+            loadData={onLoadData}
+            treeData={treeData}
+            titleRender={titleRender}
+            onExpand={onExpand}
+            expandedKeys={expandedKeys}
+            autoExpandParent={autoExpandParent}
+            showLine={{ showLeafIcon: false }}
+            className={styles.tree}
+            selectable={false}
+          />
+        </div>
+      </div>
     </div>
   );
 };
