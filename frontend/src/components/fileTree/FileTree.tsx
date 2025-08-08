@@ -9,9 +9,10 @@ const { Search } = Input;
 
 interface FileTreeProps {
   onFileSelect: (file: FileItem) => void;
+  darkMode?: boolean;
 }
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = false }) => {
   const [treeData, setTreeData] = useState<TreeDataNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -21,16 +22,70 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect }) => {
   // 將 FileItem 轉換為 TreeDataNode
   const fileItemToTreeNode = (item: FileItem): TreeDataNode => {
     return {
-      title: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileIcon type={item.type} extension={item.extension} />
-          <span>{item.name}</span>
-        </span>
-      ),
+      title: item.name,
       key: item.path,
       isLeaf: item.type === 'file',
       children: item.children?.map(fileItemToTreeNode),
+      data: item // 保存原始資料
     };
+  };
+
+  // 自定義標題渲染
+  const titleRender = (nodeData: any) => {
+    const item: FileItem = nodeData.data;
+    const isExpanded = expandedKeys.includes(nodeData.key);
+    
+    const handleTitleClick = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      if (item.type === 'file') {
+        // 處理檔案選擇
+        try {
+          const fileInfo = await apiService.getFileInfo(item.path);
+          if (fileInfo.success) {
+            const fileItem: FileItem = {
+              name: fileInfo.data.name,
+              path: fileInfo.data.path,
+              type: 'file',
+              size: fileInfo.data.size,
+              modified: fileInfo.data.modified,
+              extension: fileInfo.data.extension,
+            };
+            onFileSelect(fileItem);
+          }
+        } catch (error) {
+          console.error('Failed to get file info:', error);
+        }
+      } else {
+        // 處理資料夾展開/收折
+        if (isExpanded) {
+          setExpandedKeys(prev => prev.filter(key => key !== nodeData.key));
+        } else {
+          setExpandedKeys(prev => [...prev, nodeData.key]);
+          // 如果資料夾還沒有載入子項目，觸發載入
+          if (!nodeData.children || nodeData.children.length === 0) {
+            await onLoadData(nodeData);
+          }
+        }
+        setAutoExpandParent(false);
+      }
+    };
+
+    return (
+      <span 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          cursor: 'pointer',
+          width: '100%'
+        }}
+        onClick={handleTitleClick}
+      >
+        <FileIcon type={item.type} extension={item.extension} />
+        <span>{item.name}</span>
+      </span>
+    );
   };
 
   // 載入根目錄
@@ -92,33 +147,6 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect }) => {
     });
   };
 
-  // 處理檔案選擇
-  const onSelect = async (selectedKeys: React.Key[], info: any) => {
-    if (selectedKeys.length > 0) {
-      const selectedKey = selectedKeys[0] as string;
-      const node = info.node;
-      
-      // 如果是檔案，載入檔案內容
-      if (node.isLeaf) {
-        try {
-          const fileInfo = await apiService.getFileInfo(selectedKey);
-          if (fileInfo.success) {
-            const fileItem: FileItem = {
-              name: fileInfo.data.name,
-              path: fileInfo.data.path,
-              type: 'file',
-              size: fileInfo.data.size,
-              modified: fileInfo.data.modified,
-              extension: fileInfo.data.extension,
-            };
-            onFileSelect(fileItem);
-          }
-        } catch (error) {
-          console.error('Failed to get file info:', error);
-        }
-      }
-    }
-  };
 
   // 搜尋功能
   const onSearch = (value: string) => {
@@ -160,7 +188,19 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect }) => {
   };
 
   useEffect(() => {
-    loadRootDirectory();
+    let isCancelled = false;
+    
+    const loadRoot = async () => {
+      if (!isCancelled) {
+        await loadRootDirectory();
+      }
+    };
+    
+    loadRoot();
+    
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   if (loading) {
@@ -186,12 +226,13 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileSelect }) => {
       <Tree
         loadData={onLoadData}
         treeData={treeData}
-        onSelect={onSelect}
+        titleRender={titleRender}
         onExpand={onExpand}
         expandedKeys={expandedKeys}
         autoExpandParent={autoExpandParent}
         showLine={{ showLeafIcon: false }}
         style={{ backgroundColor: 'transparent' }}
+        selectable={false}
       />
     </div>
   );

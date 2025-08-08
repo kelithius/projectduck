@@ -5,9 +5,10 @@ import apiService from '@/services/api';
 
 interface MediaViewerProps {
   file: FileItem;
+  darkMode?: boolean;
 }
 
-export const MediaViewer: React.FC<MediaViewerProps> = ({ file }) => {
+export const MediaViewer: React.FC<MediaViewerProps> = ({ file, darkMode = false }) => {
   const fileUrl = apiService.getFileRawUrl(file.path);
   
   const isImage = file.extension && 
@@ -16,8 +17,15 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ file }) => {
   const isVideo = file.extension && 
     ['mp4', 'avi', 'mov', 'webm', 'flv', 'mkv'].includes(file.extension.toLowerCase());
 
+  const cardStyle = {
+    height: '100%',
+    textAlign: 'center' as const,
+    backgroundColor: darkMode ? '#1f1f1f' : '#fff',
+    borderColor: darkMode ? '#303030' : '#d9d9d9'
+  };
+
   return (
-    <Card style={{ height: '100%', textAlign: 'center' }}>
+    <Card style={cardStyle}>
       {isImage && (
         <div style={{ 
           display: 'flex', 

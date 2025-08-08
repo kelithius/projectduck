@@ -23,8 +23,8 @@ class ApiService {
    * 取得目錄內容
    */
   async getDirectory(path: string = ''): Promise<DirectoryResponse> {
-    const encodedPath = encodeURIComponent(path);
-    return this.request<DirectoryResponse>(`/directory?path=${encodedPath}`);
+    const url = path ? `/directory?path=${encodeURIComponent(path)}` : '/directory';
+    return this.request<DirectoryResponse>(url);
   }
 
   /**
@@ -55,8 +55,16 @@ class ApiService {
    * 健康檢查
    */
   async healthCheck(): Promise<{ status: string; timestamp: string; basePath: string }> {
-    const response = await fetch('/health');
-    return response.json();
+    try {
+      const response = await fetch('/health');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Health check failed:', error);
+      throw error;
+    }
   }
 }
 

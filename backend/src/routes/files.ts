@@ -20,14 +20,14 @@ router.get('/directory', async (req, res) => {
       }
     };
     
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     const errorResponse: ApiError = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
     
-    res.status(400).json(errorResponse);
+    return res.status(400).json(errorResponse);
   }
 });
 
@@ -53,14 +53,14 @@ router.get('/file/content', async (req, res) => {
       data: content
     };
     
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     const errorResponse: ApiError = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
     
-    res.status(400).json(errorResponse);
+    return res.status(400).json(errorResponse);
   }
 });
 
@@ -86,14 +86,14 @@ router.get('/file/info', async (req, res) => {
       data: info
     };
     
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     const errorResponse: ApiError = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
     
-    res.status(400).json(errorResponse);
+    return res.status(400).json(errorResponse);
   }
 });
 
@@ -120,13 +120,14 @@ router.get('/file/raw', async (req, res) => {
     
     // 串流檔案內容
     fileStream.pipe(res);
+    return;
   } catch (error) {
     const errorResponse: ApiError = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
     
-    res.status(400).json(errorResponse);
+    return res.status(400).json(errorResponse);
   }
 });
 

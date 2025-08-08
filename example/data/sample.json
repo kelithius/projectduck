@@ -1,0 +1,185 @@
+{
+  "project": {
+    "name": "ProjectDuck",
+    "description": "檔案瀏覽器示例資料",
+    "version": "1.0.0",
+    "created": "2025-08-08T10:00:00Z",
+    "authors": [
+      {
+        "name": "開發者A",
+        "email": "dev-a@example.com",
+        "role": "前端開發"
+      },
+      {
+        "name": "開發者B", 
+        "email": "dev-b@example.com",
+        "role": "後端開發"
+      }
+    ]
+  },
+  "features": [
+    {
+      "id": "file-browser",
+      "name": "檔案瀏覽",
+      "status": "completed",
+      "priority": "high",
+      "tasks": [
+        "實作檔案樹組件",
+        "支援目錄展開/收折",
+        "檔案類型圖示顯示"
+      ]
+    },
+    {
+      "id": "content-viewer", 
+      "name": "內容檢視",
+      "status": "completed",
+      "priority": "high",
+      "tasks": [
+        "Markdown 渲染支援",
+        "程式碼語法高亮",
+        "圖片/影片播放"
+      ]
+    },
+    {
+      "id": "theme-toggle",
+      "name": "主題切換",
+      "status": "completed", 
+      "priority": "medium",
+      "tasks": [
+        "Light/Dark 模式切換",
+        "主題偏好保存",
+        "UI 組件主題適配"
+      ]
+    },
+    {
+      "id": "search",
+      "name": "搜尋功能",
+      "status": "in-progress",
+      "priority": "medium",
+      "tasks": [
+        "檔案名稱搜尋",
+        "內容搜尋",
+        "搜尋結果高亮"
+      ]
+    }
+  ],
+  "statistics": {
+    "totalFiles": 42,
+    "totalDirectories": 8,
+    "codeFiles": 15,
+    "documentFiles": 12,
+    "mediaFiles": 3,
+    "dataFiles": 5,
+    "otherFiles": 7,
+    "totalSize": 2847392,
+    "averageFileSize": 67794
+  },
+  "supportedLanguages": {
+    "javascript": {
+      "extensions": [".js", ".jsx", ".mjs"],
+      "highlighter": "prism",
+      "lineNumbers": true,
+      "theme": {
+        "light": "tomorrow",
+        "dark": "vscDarkPlus"
+      }
+    },
+    "typescript": {
+      "extensions": [".ts", ".tsx"],
+      "highlighter": "prism", 
+      "lineNumbers": true,
+      "theme": {
+        "light": "tomorrow",
+        "dark": "vscDarkPlus"
+      }
+    },
+    "python": {
+      "extensions": [".py", ".pyw"],
+      "highlighter": "prism",
+      "lineNumbers": true,
+      "theme": {
+        "light": "tomorrow", 
+        "dark": "vscDarkPlus"
+      }
+    },
+    "markdown": {
+      "extensions": [".md", ".markdown"],
+      "renderer": "react-markdown",
+      "plugins": ["remark-gfm", "rehype-highlight"],
+      "features": ["tables", "strikethrough", "autolinks", "syntax-highlighting"]
+    }
+  },
+  "apiEndpoints": {
+    "baseUrl": "http://localhost:3001/api",
+    "routes": {
+      "directory": {
+        "method": "GET",
+        "path": "/directory",
+        "parameters": ["path"],
+        "description": "取得指定目錄的檔案列表"
+      },
+      "fileContent": {
+        "method": "GET", 
+        "path": "/file/content",
+        "parameters": ["path"],
+        "description": "取得指定檔案的文字內容"
+      },
+      "fileInfo": {
+        "method": "GET",
+        "path": "/file/info", 
+        "parameters": ["path"],
+        "description": "取得指定檔案的詳細資訊"
+      },
+      "fileRaw": {
+        "method": "GET",
+        "path": "/file/raw",
+        "parameters": ["path"], 
+        "description": "取得指定檔案的原始內容(二進制)"
+      }
+    }
+  },
+  "performance": {
+    "loadTime": {
+      "fileTree": 150,
+      "markdown": 80,
+      "codeHighlight": 45,
+      "themeSwitch": 20
+    },
+    "caching": {
+      "enabled": true,
+      "ttl": 300000,
+      "maxSize": "50MB"
+    },
+    "optimization": {
+      "lazyLoading": true,
+      "virtualScroll": false,
+      "debounceSearch": 300
+    }
+  },
+  "testCases": [
+    {
+      "name": "載入檔案樹",
+      "description": "測試根目錄載入功能",
+      "expected": "顯示所有檔案和資料夾",
+      "status": "passed"
+    },
+    {
+      "name": "Markdown 渲染",
+      "description": "測試 Markdown 檔案顯示",
+      "expected": "正確渲染 Markdown 內容",
+      "status": "passed"
+    },
+    {
+      "name": "程式碼高亮",
+      "description": "測試程式碼檔案語法高亮",
+      "expected": "顯示彩色語法高亮",
+      "status": "passed"
+    },
+    {
+      "name": "主題切換",
+      "description": "測試 Light/Dark 模式切換",
+      "expected": "UI 主題正確切換",
+      "status": "passed"
+    }
+  ]
+}

@@ -1,18 +1,18 @@
 import path from 'path';
 
 export class SecurityService {
-  private static readonly BASE_PATH = process.env.BASE_PATH || process.cwd();
+  private static get BASE_PATH(): string {
+    return process.env.BASE_PATH || process.cwd();
+  }
 
   /**
    * 驗證並標準化檔案路徑，防止路徑穿越攻擊
    */
-  static validatePath(requestPath: string): string {
-    if (!requestPath) {
-      throw new Error('Path is required');
-    }
-
-    // 移除多餘的斜線和點
-    const cleanPath = requestPath.replace(/\/+/g, '/').replace(/\/\./g, '/');
+  static validatePath(requestPath: string = ''): string {
+    // 空路徑表示根目錄
+    const cleanPath = requestPath 
+      ? requestPath.replace(/\/+/g, '/').replace(/\/\./g, '/') 
+      : '';
     
     // 解析絕對路徑
     const resolvedPath = path.resolve(this.BASE_PATH, cleanPath);

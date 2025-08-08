@@ -1,0 +1,68 @@
+ProjectDuck 測試筆記
+====================
+
+這是一個純文字檔案示例，用來測試文字檔案的顯示功能。
+
+功能測試清單：
+- [x] 檔案樹載入
+- [x] 目錄展開/收折
+- [x] 檔案選擇
+- [x] Markdown 渲染
+- [x] 程式碼語法高亮
+- [x] JSON 格式化
+- [x] 圖片顯示
+- [x] 主題切換
+- [ ] 圖表渲染 (Mermaid/PlantUML)
+- [ ] Section 折疊功能
+
+測試檔案類型：
+1. Markdown 文件 (.md)
+   - README.md - 主要說明文件
+   - docs/api.md - API 文件
+   - docs/charts.md - 圖表示例
+
+2. 程式碼檔案
+   - JavaScript (.js) - example.js
+   - Python (.py) - example.py  
+   - TypeScript (.tsx) - component.tsx
+   - CSS (.css) - styles.css
+
+3. 資料檔案
+   - JSON (.json) - config.json, sample.json
+   - YAML (.yml) - app.yml
+   - 純文字 (.txt) - notes.txt
+
+4. 多媒體檔案
+   - SVG 圖片 - sample.svg
+   - 其他圖片格式 (待添加)
+
+5. 配置檔案
+   - package.json
+   - app.yml
+   - config.json
+
+測試步驟：
+1. 啟動後端服務器：cd backend && npm start
+2. 啟動前端開發服務器：cd frontend && npm run dev  
+3. 開啟瀏覽器至 http://localhost:3000
+4. 測試檔案樹導航功能
+5. 測試各種檔案類型的顯示
+6. 測試主題切換功能
+7. 測試搜尋功能
+8. 驗證響應式設計
+
+預期結果：
+- 所有檔案類型都能正確顯示
+- 語法高亮功能正常運作
+- 主題切換無異常
+- 檔案樹互動流暢
+- 檔案資訊顯示正確
+
+問題記錄：
+- 目前圖表渲染功能尚未實作
+- Section 折疊功能待開發
+- 需要添加更多媒體檔案示例
+
+---
+更新時間：2025-08-08
+測試者：ProjectDuck Team

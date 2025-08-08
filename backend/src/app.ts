@@ -15,9 +15,9 @@ app.use(cors({
 // JSON 解析中間件
 app.use(express.json());
 
-// 設定基礎目錄 (如果沒有設定環境變數，使用當前目錄)
+// 設定基礎目錄 (預設使用 example 目錄)
 if (!process.env.BASE_PATH) {
-  process.env.BASE_PATH = process.cwd();
+  process.env.BASE_PATH = path.join(process.cwd(), '..', 'example');
 }
 
 // API 路由
