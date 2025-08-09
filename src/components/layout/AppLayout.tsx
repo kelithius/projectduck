@@ -102,7 +102,8 @@ const AppLayoutInner: React.FC = () => {
   const sidebarStyle = {
     height: '100%',
     backgroundColor: isDark ? '#1f1f1f' : '#fafafa',
-    borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`
+    borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+    overflow: 'auto'
   };
 
   return (
