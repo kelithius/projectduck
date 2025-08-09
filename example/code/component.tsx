@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Tree, Spin, message, Button, Input, Space } from 'antd';
 import { FileOutlined, FolderOutlined, SearchOutlined } from '@ant-design/icons';
-import type { TreeDataNode } from 'antd/es/tree';
+import type { DataNode as TreeDataNode } from 'antd/es/tree';
 
 // TypeScript 介面定義
 interface FileItem {
@@ -130,7 +130,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
       key: item.path,
       isLeaf: isFile,
       children: item.children?.map(fileItemToTreeNode),
-      data: item // 保存原始資料
+      // data: item // 保存原始資料 (DataNode 不支援自定義屬性)
     };
   }, [darkMode, formatFileSize]);
 
@@ -223,10 +223,16 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     if (selectedKeys.length === 0) return;
 
     const selectedNode = info.node;
-    const fileData: FileItem = selectedNode.data;
+    // const fileData: FileItem = selectedNode.data; // DataNode 不支援自定義屬性
 
-    if (selectedNode.isLeaf && fileData) {
-      onFileSelect(fileData);
+    if (selectedNode.isLeaf) {
+      // 根據 key 重構 FileItem 物件
+      const mockFileData: FileItem = {
+        name: selectedNode.key?.toString() || '',
+        path: selectedNode.key?.toString() || '',
+        type: 'file'
+      };
+      onFileSelect(mockFileData);
     }
   }, [onFileSelect]);
 

@@ -1,38 +1,44 @@
 {
-  "name": "projectduck",
-  "version": "1.0.0",
-  "description": "ProjectDuck - A web-based file browser for viewing server directory contents",
-  "main": "dist/app.js",
+  "name": "nextjs-app",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "server:dev": "cd backend && nodemon src/app.ts",
-    "client:dev": "cd client && vite",
-    "build": "npm run client:build && npm run server:build",
-    "client:build": "cd client && vite build",
-    "server:build": "cd backend && tsc",
-    "start": "npm run server:start",
-    "server:start": "cd backend && node dist/app.js",
-    "lint": "npm run server:lint && npm run client:lint",
-    "server:lint": "cd backend && eslint src/**/*.ts",
-    "client:lint": "cd client && eslint src/**/*.{ts,tsx}",
-    "type-check": "npm run server:type-check && npm run client:type-check",
-    "server:type-check": "cd backend && tsc --noEmit",
-    "client:type-check": "cd client && tsc --noEmit",
-    "clean": "rm -rf backend/dist client/dist public/*"
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "concurrently": "^8.2.0"
+    "@ant-design/icons": "^6.0.0",
+    "allotment": "^1.20.4",
+    "antd": "^5.26.7",
+    "cors": "^2.8.5",
+    "fs-extra": "^11.3.1",
+    "i18next": "^25.3.2",
+    "mime-types": "^3.0.1",
+    "next": "15.4.6",
+    "next-i18next": "^15.4.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.6.1",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1"
   },
-  "devDependencies": {},
-  "keywords": [
-    "file-browser",
-    "document-viewer",
-    "markdown",
-    "syntax-highlighting",
-    "react",
-    "typescript",
-    "projectduck"
-  ],
-  "author": "Keith Hung",
-  "license": "MIT"
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/cors": "^2.8.19",
+    "@types/fs-extra": "^11.0.4",
+    "@types/mime-types": "^3.0.1",
+    "@types/node": "^20",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
 }
