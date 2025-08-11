@@ -10,7 +10,8 @@
     "title": "檔案瀏覽",
     "searchPlaceholder": "搜尋檔案...",
     "noFiles": "沒有找到檔案",
-    "loadingError": "載入檔案時發生錯誤"
+    "loadingError": "載入檔案時發生錯誤",
+    "noProject": "沒有可用的專案"
   },
   "fileViewer": {
     "selectFile": "請選擇一個檔案來檢視",
@@ -25,6 +26,24 @@
   },
   "markdown": {
     "tocTitle": "目錄"
+  },
+  "mermaid": {
+    "title": "Mermaid 圖表",
+    "notAvailable": "圖表渲染功能暫時不可用",
+    "showSource": "顯示原始碼"
+  },
+  "project": {
+    "sidebar": {
+      "title": "選擇專案",
+      "error": "載入專案時發生錯誤",
+      "available": "可用專案",
+      "unavailable": "無法存取的專案",
+      "noProjects": "沒有找到專案"
+    },
+    "item": {
+      "error": "錯誤",
+      "unavailable": "此專案無法存取"
+    }
   },
   "language": {
     "switch": "切換語言",

@@ -69,7 +69,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   color: isDark ? '#ffffff' : '#000000' 
                 }}
               >
-                {t('project.sidebar.title', '選擇專案')}
+                {t('project.sidebar.title')}
               </Title>
               <Button
                 type="text"
@@ -109,7 +109,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   color: isDark ? '#ffffff' : '#000000' 
                 }}
               >
-                {t('project.sidebar.title', '選擇專案')}
+                {t('project.sidebar.title')}
               </Title>
               <Button
                 type="text"
@@ -140,7 +140,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           {error && (
             <div style={{ padding: '0 16px', marginBottom: '16px' }}>
               <Alert
-                message={t('project.sidebar.error', '載入專案時發生錯誤')}
+                message={t('project.sidebar.error')}
                 description={error}
                 type="error"
                 showIcon
@@ -165,7 +165,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         color: isDark ? '#ffffff' : '#000000' 
                       }}
                     >
-                      {t('project.sidebar.available', '可用專案')}
+                      {t('project.sidebar.available')}
                     </Text>
                   </div>
                   {validProjects.map((project) => {
@@ -203,7 +203,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         fontSize: '14px'
                       }}
                     >
-                      {t('project.sidebar.unavailable', '無法存取的專案')}
+                      {t('project.sidebar.unavailable')}
                     </Text>
                   </div>
                   {invalidProjects.map((project) => {
@@ -230,7 +230,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                       color: isDark ? '#8c8c8c' : '#8c8c8c' 
                     }}
                   >
-                    {t('project.sidebar.noProjects', '沒有找到專案')}
+                    {t('project.sidebar.noProjects')}
                   </Text>
                 </div>
               )}

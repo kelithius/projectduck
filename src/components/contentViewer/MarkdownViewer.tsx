@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Card } from 'antd';
 import { MermaidRenderer } from './MermaidRenderer';
+import { useTranslation } from 'react-i18next';
 import 'highlight.js/styles/github.css';
 
 interface MarkdownViewerProps {
@@ -14,6 +15,7 @@ interface MarkdownViewerProps {
 }
 
 export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMode = false }) => {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!content) return;
     const codeBlocks = document.querySelectorAll('.markdown-content pre code');
@@ -161,7 +163,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
     return (
       <Card style={{ height: '100%', backgroundColor: darkMode ? '#1f1f1f' : '#fff' }}>
         <div style={{ padding: '20px', textAlign: 'center', color: darkMode ? '#fff' : '#000' }}>
-          載入中...
+{t('fileViewer.loading')}
         </div>
       </Card>
     );
