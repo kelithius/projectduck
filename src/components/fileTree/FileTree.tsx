@@ -35,8 +35,6 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
   const [autoExpandParent, setAutoExpandParent] = useState(true);
   const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
-  const [hasError, setHasError] = useState(false);
-  const [fallbackUsed, setFallbackUsed] = useState(false);
 
   const fileItemToTreeNode = (item: FileItem): TreeDataNode => {
     return {
@@ -133,8 +131,6 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     setAutoExpandParent(true);
     setLoadingNodes(new Set());
     setOperationInProgress(null);
-    setHasError(false);
-    setFallbackUsed(false);
     // 重置時清除選中的檔案
     onFileSelect(null);
   }, [onFileSelect]);
@@ -142,7 +138,6 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
   const loadRootDirectory = useCallback(async () => {
     try {
       setLoading(true);
-      setHasError(false);
       
       // 確保 getCurrentBasePath 返回的是字串而不是 Promise
       let currentBasePath: string;
@@ -150,13 +145,11 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
         currentBasePath = getCurrentBasePath();
       } catch (error) {
         console.error('Error getting base path:', error);
-        setHasError(true);
         message.error(t('fileTree.noProject', '沒有可用的專案'));
         return;
       }
       
       if (!currentBasePath) {
-        setHasError(true);
         message.error(t('fileTree.noProject', '沒有可用的專案'));
         return;
       }
@@ -167,17 +160,10 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
         const nodes = response.data.items.map(fileItemToTreeNode);
         setTreeData(nodes);
         
-        // 處理降級機制的警告
-        if (response.fallbackUsed) {
-          setFallbackUsed(true);
-          message.warning(response.error || t('fileTree.fallbackWarning', '使用備用目錄'));
-        }
       } else {
-        setHasError(true);
         message.error(response.error || t('fileTree.loadingError'));
       }
     } catch (error) {
-      setHasError(true);
       message.error(t('fileTree.loadingError'));
       console.error('Failed to load directory:', error);
     } finally {
@@ -213,10 +199,6 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
           updateTreeData(prevData, key as string, childNodes)
         );
         
-        // 如果使用了降級機制，顯示警告
-        if (response.fallbackUsed) {
-          message.warning(response.error || t('fileTree.fallbackWarning', '使用備用目錄'));
-        }
       } else {
         message.error(response.error || t('fileTree.loadingError'));
       }
@@ -287,8 +269,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
       if (projectLoading) {
         // 專案還在載入中，確保顯示載入狀態
         setLoading(true);
-        setHasError(false);
-        return;
+          return;
       }
       
       // 專案載入完成後的處理
@@ -298,7 +279,6 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
       } else if (!isCancelled && !currentProject) {
         // 專案載入完成但沒有可用專案時顯示錯誤
         setLoading(false);
-        setHasError(true);
         message.error(t('fileTree.noProject', '沒有可用的專案'));
       }
     };

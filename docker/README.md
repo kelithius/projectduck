@@ -6,7 +6,7 @@ This directory contains all Docker-related files for ProjectDuck deployment.
 
 ```
 docker/
-├── Dockerfile              # Multi-stage Docker build configuration  
+├── Dockerfile              # Multi-stage Docker build configuration
 ├── README.md               # This documentation
 ├── entrypoint.sh           # Container startup script
 └── scripts/                # Build and management scripts
@@ -16,13 +16,16 @@ docker/
 ## Files Overview
 
 ### Build Configuration
+
 - `Dockerfile` - Multi-stage Docker build with security hardening
 - `../dockerignore` - Files to exclude from build context (in project root)
 
-### Container Runtime  
+### Container Runtime
+
 - `entrypoint.sh` - Startup script with configuration handling
 
 ### Build Tools
+
 - `scripts/build.sh` - Docker build and test automation script
 
 ## Configuration Requirements
@@ -35,6 +38,15 @@ docker/
 4. No projects are defined in the configuration
 
 This ensures that misconfigurations are caught early rather than causing runtime issues.
+
+## Hot Configuration Reload
+
+**ProjectDuck automatically monitors the `projects.json` file for changes** and updates the configuration in memory without requiring a container restart. This means:
+
+- You can edit `projects.json` on the host system
+- Changes are detected and applied automatically
+- Simply refresh the web page to see updated project configurations
+- No need to restart the container for configuration changes
 
 ## Quick Start
 
@@ -70,7 +82,7 @@ docker run -d -p 3000:3000 \
 
 ### Basic Usage
 
-**Important:** ProjectDuck requires a `projects.json` configuration file. The container will fail to start without it.
+**Important:** ProjectDuck requires a `projects.json` configuration file. The container will fail to start without it. The application monitors this file for changes and updates configuration automatically.
 
 ```bash
 # Pull the image
@@ -82,7 +94,7 @@ echo '{
   "projects": [
     {
       "name": "My Documents",
-      "path": "/data/docs"
+      "path": "/workspace/docs"
     }
   ]
 }' > projects.json
@@ -91,18 +103,21 @@ echo '{
 docker run -d -p 3000:3000 \
   --name projectduck \
   -v $(pwd)/projects.json:/app/projects.json \
-  -v /path/to/your/docs:/data/docs \
+  -v /path/to/your/workspace:/workspace \
   kelithius/projectduck:latest
+
+# Edit projects.json anytime - changes are automatically detected
+# Refresh the web page to see updated configurations
 ```
 
 ### With Custom Documents
 
 ```bash
-# Mount your document directories
+# Mount your workspace directory containing all projects
 docker run -d -p 3000:3000 \
   --name projectduck \
-  -v /path/to/docs:/data/docs \
-  -v /path/to/project:/data/project \
+  -v /path/to/your/workspace:/workspace \
+  -v $(pwd)/projects.json:/app/projects.json \
   kelithius/projectduck:latest
 ```
 
@@ -116,31 +131,116 @@ Create a custom `projects.json` file:
   "projects": [
     {
       "name": "Documentation",
-      "path": "/data/docs"
+      "path": "/workspace/docs"
     },
     {
-      "name": "Project Alpha", 
-      "path": "/data/project-alpha"
+      "name": "Project Alpha",
+      "path": "/workspace/project-alpha"
     },
     {
       "name": "Technical Specs",
-      "path": "/data/specs"
+      "path": "/workspace/specs"
     }
   ]
 }
 ```
 
+Organize your host directories:
+```
+/path/to/your/workspace/
+├── docs/
+├── project-alpha/
+└── specs/
+```
+
 Then run with your custom configuration:
 
 ```bash
-# Run with custom configuration
+# Run with custom configuration (single workspace mount)
 docker run -d -p 3000:3000 \
   --name projectduck \
   -v $(pwd)/projects.json:/app/projects.json \
-  -v /path/to/docs:/data/docs \
-  -v /path/to/project-alpha:/data/project-alpha \
-  -v /path/to/specs:/data/specs \
+  -v /path/to/your/workspace:/workspace \
   kelithius/projectduck:latest
+
+# You can modify projects.json while the container is running
+# Changes will be automatically detected and applied
+```
+
+## Docker Compose Example
+
+For easier management, use Docker Compose:
+
+```yaml
+version: '3.8'
+
+services:
+  projectduck:
+    image: kelithius/projectduck:latest
+    container_name: projectduck
+    restart: unless-stopped
+    
+    ports:
+      - "3000:3000"
+    
+    # Environment variables
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    
+    # Volume mounts - recommended single workspace approach
+    volumes:
+      # Mount your projects.json configuration
+      - ./projects.json:/app/projects.json:ro
+      
+      # Mount your workspace directory containing all projects
+      - /path/to/your/workspace:/workspace:ro
+      
+      # Alternative: Multiple project mounts (if needed)
+      # - /path/to/docs:/workspace/docs:ro
+      # - /path/to/project:/workspace/project:ro
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+```
+
+Create your `projects.json` in the same directory:
+```json
+{
+  "version": "1.0",
+  "projects": [
+    {
+      "name": "My Documentation",
+      "path": "/workspace/docs"
+    },
+    {
+      "name": "Current Project",
+      "path": "/workspace/my-project"
+    }
+  ]
+}
+```
+
+Run with Docker Compose:
+```bash
+# Start the service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
 ```
 
 ## Build Script Usage
@@ -187,18 +287,72 @@ docker rm projectduck
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable   | Default      | Description         |
+| ---------- | ------------ | ------------------- |
 | `NODE_ENV` | `production` | Node.js environment |
-| `PORT` | `3000` | Application port |
-| `HOSTNAME` | `0.0.0.0` | Bind hostname |
+| `PORT`     | `3000`       | Application port    |
+| `HOSTNAME` | `0.0.0.0`    | Bind hostname       |
 
-## Volume Mounts
+## Volume Mount Best Practices
 
-| Container Path | Purpose | Example Host Path |
-|----------------|---------|-------------------|
-| `/data/*` | Document directories | `/home/user/documents` |
-| `/app/projects.json` | Project configuration | `./my-projects.json` |
+**Recommended Approach: Single Workspace Mount**
+
+For the best user experience, mount all your documents under a single `/workspace` directory:
+
+```bash
+# Recommended: Single workspace mount
+docker run -d -p 3000:3000 \
+  --name projectduck \
+  -v /path/to/your/workspace:/workspace \
+  -v $(pwd)/projects.json:/app/projects.json \
+  kelithius/projectduck:latest
+```
+
+### Directory Structure Example
+
+Organize your host filesystem like this:
+```
+/path/to/your/workspace/
+├── documentation/
+├── my-project/
+├── shared-resources/
+└── archives/
+```
+
+Then create your `projects.json` with standardized paths:
+```json
+{
+  "version": "1.0",
+  "projects": [
+    {
+      "name": "Documentation",
+      "path": "/workspace/documentation"
+    },
+    {
+      "name": "My Project",
+      "path": "/workspace/my-project"
+    },
+    {
+      "name": "Shared Resources", 
+      "path": "/workspace/shared-resources"
+    }
+  ]
+}
+```
+
+### Why This Approach?
+
+1. **Simplified Setup**: Only need to mount one main directory
+2. **Less Error-Prone**: Harder to forget mounting project directories
+3. **Flexible**: Easy to add new projects without container restart
+4. **Consistent**: All projects use predictable `/workspace/` paths
+
+### Volume Mount Reference
+
+| Container Path       | Purpose               | Example Host Path           |
+| -------------------- | --------------------- | --------------------------- |
+| `/workspace`         | Main workspace mount | `/home/user/my-workspace`   |
+| `/app/projects.json` | Project configuration | `./projects.json`           |
 
 ## Health Checks
 
@@ -241,11 +395,28 @@ docker stop $(docker ps -q --filter "publish=3000")
 
 ```bash
 # Check volume permissions
-ls -la /path/to/your/documents
+ls -la /path/to/your/workspace
 
 # Fix permissions if needed
-sudo chown -R 1001:1001 /path/to/your/documents
+sudo chown -R 1001:1001 /path/to/your/workspace
 ```
+
+### Missing Project Directories
+
+If you see "Project directory does not exist" errors:
+
+```bash
+# Check if your workspace is properly mounted
+docker exec projectduck ls -la /workspace
+
+# Verify your projects.json paths match your directory structure
+docker exec projectduck cat /app/projects.json
+```
+
+Common issues:
+- Forgot to mount the `/workspace` directory
+- projects.json paths don't match your actual directory structure
+- Incorrect host path in volume mount
 
 ## Security Considerations
 
@@ -268,15 +439,14 @@ For production deployment, consider:
 Example production docker-compose:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   projectduck:
-    image: kelithius/projectduck:1.0.0
+    image: kelithius/projectduck:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     volumes:
-      - ./data:/data
       - ./config/projects.json:/app/projects.json:ro
     environment:
       - NODE_ENV=production
@@ -289,5 +459,5 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: '1.0'
+          cpus: "1.0"
 ```

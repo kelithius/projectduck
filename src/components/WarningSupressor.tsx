@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useLayoutEffect } from 'react';
+import { useLayoutEffect } from 'react';
 
 export const WarningSupressor = () => {
   useLayoutEffect(() => {
@@ -36,14 +36,14 @@ export const WarningSupressor = () => {
     // 嘗試直接修改 React 版本檢查
     try {
       // 檢查是否存在 React 版本資訊並嘗試修改
-      if (window && (window as any).React && (window as any).React.version) {
-        Object.defineProperty((window as any).React, 'version', {
+      if (window && (window as Window & { React?: { version: string } }).React?.version) {
+        Object.defineProperty((window as Window & { React: { version: string } }).React, 'version', {
           value: '18.3.1',
           writable: false,
           configurable: false
         });
       }
-    } catch (e) {
+    } catch {
       // 忽略錯誤
     }
     

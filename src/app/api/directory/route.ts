@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const basePath = searchParams.get('basePath'); // 可選的 basePath 參數
     
-    // 使用專案感知的 FileService 與降級機制
-    const result = await ProjectAwareFileService.getDirectoryContentsWithFallback(
+    // 使用專案感知的 FileService
+    const result = await ProjectAwareFileService.getDirectoryContentsWithBasePath(
       path, 
       page, 
       limit, 
@@ -27,10 +27,7 @@ export async function GET(request: NextRequest) {
         hasMore: result.hasMore,
         page,
         limit
-      },
-      // 如果有錯誤或使用了降級機制，包含在回應中
-      error: result.error,
-      fallbackUsed: result.fallbackUsed
+      }
     };
     
     return NextResponse.json(response);

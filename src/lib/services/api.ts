@@ -35,8 +35,8 @@ class ApiService {
     
     const result = await this.request<DirectoryResponse>(url);
     
-    // 如果回應包含錯誤或使用了降級機制，縮短快取時間
-    const cacheTime = result.error || result.fallbackUsed ? 0.5 : 2;
+    // 如果回應包含錯誤，縮短快取時間
+    const cacheTime = result.error ? 0.5 : 2;
     cacheService.set(cacheKey, result, cacheTime);
     
     return result;

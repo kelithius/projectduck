@@ -42,32 +42,50 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
         throw new Error(result.error || 'Failed to load projects');
       }
       
-      const validProjects = result.data.projects;
+      const validProjects: ProjectValidationResult[] = result.data.projects;
       setProjects(validProjects);
       
-      const savedProjectIndex = localStorage.getItem('projectduck-current-project');
+      // 嘗試根據專案名稱（而非索引）來恢復當前專案
+      const savedProjectName = localStorage.getItem('projectduck-current-project-name');
       let targetProject: ProjectValidationResult | null = null;
       
-      if (savedProjectIndex !== null) {
-        const index = parseInt(savedProjectIndex, 10);
-        if (!isNaN(index) && index >= 0 && index < validProjects.length) {
-          const candidate = validProjects[index];
-          if (candidate && candidate.isValid) {
-            targetProject = candidate;
+      if (savedProjectName) {
+        // 先嘗試根據專案名稱找到對應的專案
+        const projectByName = validProjects.find(p => p.name === savedProjectName && p.isValid);
+        if (projectByName) {
+          targetProject = projectByName;
+        }
+      }
+      
+      // 如果根據名稱找不到，嘗試使用儲存的索引（向後兼容）
+      if (!targetProject) {
+        const savedProjectIndex = localStorage.getItem('projectduck-current-project');
+        if (savedProjectIndex !== null) {
+          const index = parseInt(savedProjectIndex, 10);
+          if (!isNaN(index) && index >= 0 && index < validProjects.length) {
+            const candidate = validProjects[index];
+            if (candidate && candidate.isValid) {
+              targetProject = candidate;
+            }
           }
         }
       }
       
-      // 如果沒有儲存的專案或無效，使用第一個有效專案
+      // 如果還是沒有找到，使用第一個有效專案
       if (!targetProject && validProjects.length > 0) {
-        targetProject = validProjects[0];
+        const firstValidProject = validProjects.find(p => p.isValid);
+        if (firstValidProject) {
+          targetProject = firstValidProject;
+        }
       }
       
       setCurrentProject(targetProject);
       
       if (targetProject) {
         const projectIndex = validProjects.indexOf(targetProject);
+        // 同時儲存索引和專案名稱
         localStorage.setItem('projectduck-current-project', projectIndex.toString());
+        localStorage.setItem('projectduck-current-project-name', targetProject.name);
         
         window.dispatchEvent(new CustomEvent('projectChange', {
           detail: { project: targetProject }
@@ -97,7 +115,9 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     }
     
     setCurrentProject(targetProject);
+    // 同時儲存索引和專案名稱
     localStorage.setItem('projectduck-current-project', projectIndex.toString());
+    localStorage.setItem('projectduck-current-project-name', targetProject.name);
     
     window.dispatchEvent(new CustomEvent('projectChange', {
       detail: { project: targetProject }

@@ -13,6 +13,7 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 - **🌐 Internationalization**: Default Traditional Chinese with multi-language support
 - **⚡ Performance Optimization**: API response caching, lazy loading, dynamic imports
 - **🔍 Smart Search**: Real-time file tree search and filtering
+- **🔄 Hot Reload Configuration**: Automatically detects changes to projects.json and updates configuration
 - **📱 Responsive Design**: Adapts to desktop, tablet, and other screen sizes
 
 ## 🚀 Tech Stack
@@ -40,6 +41,7 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 - **i18next 25.3.2** - Multi-language framework
 - **fs-extra 11.3.1** - Enhanced file system operations
 - **mime-types 3.0.1** - MIME type detection
+- **chokidar 4.x** - Cross-platform file watching for configuration hot reload
 
 ## 🎯 Supported File Formats
 
@@ -165,6 +167,8 @@ By default, browses files in the `/example` directory. Can be modified via the `
 ### Performance & Experience
 - **API Caching**: Smart caching mechanism reduces duplicate requests
 - **Lazy Loading**: Dynamic loading of file tree and components
+- **Hot Configuration Reload**: Automatically detects and applies changes to projects.json without restart
+- **Memory-based Config Cache**: Lightning-fast project configuration access
 - **Responsive**: Adapts to different screen sizes
 - **Theme Switching**: One-click toggle between dark/light modes
 - **Search Functionality**: Real-time filename search with highlighting
@@ -209,7 +213,7 @@ ProjectDuck is containerized and available as `kelithius/projectduck` Docker ima
 
 #### Quick Start
 
-**Important:** ProjectDuck requires a `projects.json` configuration file.
+**Important:** ProjectDuck requires a `projects.json` configuration file. The application automatically monitors this file for changes and updates the configuration without requiring a restart.
 
 ```bash
 # Create required configuration
@@ -218,7 +222,7 @@ echo '{
   "projects": [
     {
       "name": "My Documents", 
-      "path": "/data/docs"
+      "path": "/workspace/docs"
     }
   ]
 }' > projects.json
@@ -227,19 +231,22 @@ echo '{
 docker run -d -p 3000:3000 \
   --name projectduck \
   -v $(pwd)/projects.json:/app/projects.json \
-  -v /path/to/your/docs:/data/docs \
+  -v /path/to/your/workspace:/workspace \
   kelithius/projectduck:latest
+
+# You can now edit projects.json and changes will be detected automatically
+# Simply refresh the page to see updated project configurations
 ```
 
 #### Custom Document Directories
 
-Mount your document directories using Docker volumes:
+Mount your workspace directory containing all projects:
 
 ```bash
 docker run -d -p 3000:3000 \
   --name projectduck \
-  -v /path/to/your/docs:/data/docs \
-  -v /path/to/project:/data/project \
+  -v /path/to/your/workspace:/workspace \
+  -v $(pwd)/projects.json:/app/projects.json \
   kelithius/projectduck:latest
 ```
 
@@ -255,11 +262,11 @@ cat > my-projects.json << EOF
   "projects": [
     {
       "name": "My Documentation",
-      "path": "/data/docs"
+      "path": "/workspace/docs"
     },
     {
       "name": "Project Files",
-      "path": "/data/project"
+      "path": "/workspace/project"
     }
   ]
 }
@@ -269,8 +276,7 @@ EOF
 docker run -d -p 3000:3000 \
   --name projectduck \
   -v $(pwd)/my-projects.json:/app/projects.json \
-  -v /path/to/docs:/data/docs \
-  -v /path/to/project:/data/project \
+  -v /path/to/your/workspace:/workspace \
   kelithius/projectduck:latest
 ```
 
@@ -298,9 +304,8 @@ services:
     
     # Volume mounts for custom documents and configuration
     volumes:
-      # Mount your document directories here
-      - /path/to/your/docs:/data/docs
-      - /path/to/another/project:/data/project2
+      # Mount your workspace directory containing all projects
+      - /path/to/your/workspace:/workspace
       
       # Optional: Custom projects.json configuration
       # - ./custom-projects.json:/app/projects.json
@@ -361,7 +366,7 @@ docker run -d -p 3000:3000 my-projectduck
 
 | Path | Purpose | Example |
 |------|---------|---------|
-| `/data/*` | Custom document directories | `-v /host/docs:/data/docs` |
+| `/workspace` | Main workspace directory | `-v /host/workspace:/workspace` |
 | `/app/projects.json` | Project configuration | `-v ./my-config.json:/app/projects.json` |
 
 #### Health Check

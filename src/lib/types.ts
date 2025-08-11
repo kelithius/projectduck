@@ -19,7 +19,6 @@ export interface DirectoryResponse {
     limit?: number;
   };
   error?: string;
-  fallbackUsed?: boolean; // 指示是否使用了降級機制
 }
 
 export interface FileContentResponse {
