@@ -62,14 +62,22 @@ class ApiService {
     return result;
   }
 
-  async getFileInfo(path: string): Promise<FileInfoResponse> {
+  async getFileInfo(path: string, basePath?: string): Promise<FileInfoResponse> {
     const encodedPath = encodeURIComponent(path);
-    return this.request<FileInfoResponse>(`/file/info?path=${encodedPath}`);
+    let url = `/file/info?path=${encodedPath}`;
+    if (basePath) {
+      url += `&basePath=${encodeURIComponent(basePath)}`;
+    }
+    return this.request<FileInfoResponse>(url);
   }
 
-  getFileRawUrl(path: string): string {
+  getFileRawUrl(path: string, basePath?: string): string {
     const encodedPath = encodeURIComponent(path);
-    return `${API_BASE_URL}/file/raw?path=${encodedPath}`;
+    let url = `${API_BASE_URL}/file/raw?path=${encodedPath}`;
+    if (basePath) {
+      url += `&basePath=${encodeURIComponent(basePath)}`;
+    }
+    return url;
   }
 
   async healthCheck(): Promise<{ status: string; timestamp: string; basePath: string }> {

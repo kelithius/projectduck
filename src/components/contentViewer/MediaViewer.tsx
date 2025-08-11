@@ -3,6 +3,7 @@ import { Card, Image } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { FileItem } from '@/lib/types';
 import apiService from '@/lib/services/api';
+import { useProject } from '@/lib/providers/project-provider';
 
 interface MediaViewerProps {
   file: FileItem;
@@ -11,7 +12,8 @@ interface MediaViewerProps {
 
 export const MediaViewer: React.FC<MediaViewerProps> = ({ file, darkMode = false }) => {
   const { t } = useTranslation();
-  const fileUrl = apiService.getFileRawUrl(file.path);
+  const { getCurrentBasePath } = useProject();
+  const fileUrl = apiService.getFileRawUrl(file.path, getCurrentBasePath());
   
   const isImage = file.extension && 
     ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(file.extension.toLowerCase());
