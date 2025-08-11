@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Space, Typography, Button, Tooltip } from 'antd';
-import { FolderOutlined, ExclamationCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Space, Typography, Tooltip } from 'antd';
+import { FolderOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { ProjectValidationResult } from '@/lib/types';
 import { useTranslation } from 'react-i18next';
 import styles from '@/styles/project-sidebar.module.css';
@@ -94,15 +94,6 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   };
 
 
-  const pathStyle = {
-    fontSize: '11px',
-    color: disabled 
-      ? (isDark ? '#434343' : '#bfbfbf')
-      : (isDark ? '#8c8c8c' : '#bfbfbf'),
-    margin: '2px 0 0 0',
-    lineHeight: '14px',
-    wordBreak: 'break-all' as const
-  };
 
   const errorStyle = {
     fontSize: '11px',

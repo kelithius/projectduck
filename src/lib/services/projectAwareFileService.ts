@@ -78,40 +78,6 @@ export class ProjectAwareFileService {
     }
   }
 
-  // 錯誤處理和降級機制
-  static async getDirectoryContentsWithFallback(
-    requestPath: string = '', 
-    page: number = 1, 
-    limit: number = 100,
-    basePath?: string
-  ): Promise<{ 
-    items: FileItem[]; 
-    totalCount: number; 
-    hasMore: boolean; 
-    error?: string;
-    fallbackUsed?: boolean;
-  }> {
-    try {
-      const result = await this.getDirectoryContentsWithBasePath(requestPath, page, limit, basePath);
-      return {
-        ...result,
-        fallbackUsed: false
-      };
-    } catch (error) {
-      console.error('Primary directory access failed, using fallback');
-      
-      // 直接返回錯誤，不使用降級機制
-      console.error('Directory access failed');
-      
-      return {
-        items: [],
-        totalCount: 0,
-        hasMore: false,
-        error: `Unable to access directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        fallbackUsed: true
-      };
-    }
-  }
 
   // 驗證專案路徑
   private static validateProjectPath(fullPath: string, basePath: string): string {

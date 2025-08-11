@@ -17,6 +17,7 @@ IMAGE_NAME="kelithius/projectduck"
 CONTAINER_NAME="projectduck-test"
 BUILD_CONTEXT="../.."
 DOCKERFILE="../Dockerfile"
+DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 
 # Functions
 log_info() {
@@ -45,7 +46,7 @@ cleanup_container() {
     fi
 }
 
-# Function to build Docker image
+# Function to build Docker image (single platform)
 build_image() {
     log_info "Building Docker image: ${IMAGE_NAME}"
     log_info "Build context: ${BUILD_CONTEXT}"
@@ -55,6 +56,58 @@ build_image() {
         log_success "Docker image built successfully"
     else
         log_error "Failed to build Docker image"
+        exit 1
+    fi
+}
+
+# Function to build multi-platform Docker image
+build_image_multiplatform() {
+    local platforms=${1:-$DEFAULT_PLATFORMS}
+    local push_flag=${2:-false}
+    
+    log_info "Building multi-platform Docker image: ${IMAGE_NAME}"
+    log_info "Platforms: ${platforms}"
+    log_info "Build context: ${BUILD_CONTEXT}"
+    log_info "Dockerfile: ${DOCKERFILE}"
+    
+    # Check if buildx is available
+    if ! docker buildx version > /dev/null 2>&1; then
+        log_error "Docker buildx is not available. Please install Docker Desktop or enable buildx."
+        exit 1
+    fi
+    
+    # Create and use buildx builder if it doesn't exist
+    local builder_name="projectduck-builder"
+    if ! docker buildx ls | grep -q "${builder_name}"; then
+        log_info "Creating buildx builder: ${builder_name}"
+        docker buildx create --name ${builder_name} --use
+    else
+        log_info "Using existing buildx builder: ${builder_name}"
+        docker buildx use ${builder_name}
+    fi
+    
+    # Build command
+    local build_cmd="docker buildx build --platform ${platforms} -f ${DOCKERFILE}"
+    
+    if [ "$push_flag" = "true" ]; then
+        build_cmd="${build_cmd} --push"
+        log_info "Will push to registry after build"
+    else
+        build_cmd="${build_cmd} --load"
+        log_warning "Building for local use only (--load). Use 'buildx-push' to push to registry."
+    fi
+    
+    build_cmd="${build_cmd} -t ${IMAGE_NAME}:latest ${BUILD_CONTEXT}"
+    
+    log_info "Executing: ${build_cmd}"
+    if eval ${build_cmd}; then
+        if [ "$push_flag" = "true" ]; then
+            log_success "Multi-platform Docker image built and pushed successfully"
+        else
+            log_success "Multi-platform Docker image built successfully"
+        fi
+    else
+        log_error "Failed to build multi-platform Docker image"
         exit 1
     fi
 }
@@ -138,6 +191,24 @@ main() {
             build_image
             show_image_info
             ;;
+        "buildx")
+            # Multi-platform build for local use
+            platforms=${2:-$DEFAULT_PLATFORMS}
+            build_image_multiplatform "$platforms" false
+            ;;
+        "buildx-push")
+            # Multi-platform build and push to registry
+            platforms=${2:-$DEFAULT_PLATFORMS}
+            build_image_multiplatform "$platforms" true
+            ;;
+        "buildx-amd64")
+            # Build only for AMD64/x64
+            build_image_multiplatform "linux/amd64" false
+            ;;
+        "buildx-arm64")
+            # Build only for ARM64
+            build_image_multiplatform "linux/arm64" false
+            ;;
         "test")
             test_image
             ;;
@@ -153,17 +224,28 @@ main() {
             cleanup_container
             log_info "Removing Docker image if exists..."
             docker rmi ${IMAGE_NAME}:latest 2>/dev/null || true
+            log_info "Removing buildx builder if exists..."
+            docker buildx rm projectduck-builder 2>/dev/null || true
             log_success "Cleanup completed"
             ;;
         *)
-            echo "Usage: $0 [build|test|build-test|run|clean]"
+            echo "Usage: $0 [build|buildx|buildx-push|buildx-amd64|buildx-arm64|test|build-test|run|clean]"
             echo ""
             echo "Commands:"
-            echo "  build      - Build the Docker image"
-            echo "  test       - Test the existing Docker image"
-            echo "  build-test - Build and test the Docker image"
-            echo "  run        - Run the container interactively"
-            echo "  clean      - Clean up containers and image"
+            echo "  build         - Build the Docker image (current platform only)"
+            echo "  buildx        - Build multi-platform image (amd64 + arm64) for local use"
+            echo "  buildx-push   - Build multi-platform image and push to registry"
+            echo "  buildx-amd64  - Build for AMD64/x64 only"
+            echo "  buildx-arm64  - Build for ARM64 only"
+            echo "  test          - Test the existing Docker image"
+            echo "  build-test    - Build and test the Docker image"
+            echo "  run           - Run the container interactively"
+            echo "  clean         - Clean up containers, images and buildx builder"
+            echo ""
+            echo "Examples:"
+            echo "  ./build.sh buildx                     # Build for amd64 + arm64"
+            echo "  ./build.sh buildx linux/amd64        # Build for amd64 only"
+            echo "  ./build.sh buildx-push               # Build and push both platforms"
             echo ""
             exit 1
             ;;

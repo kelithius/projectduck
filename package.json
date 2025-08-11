@@ -12,6 +12,7 @@
     "@ant-design/icons": "^6.0.0",
     "allotment": "^1.20.4",
     "antd": "^5.26.7",
+    "chokidar": "^4.0.3",
     "cors": "^2.8.5",
     "fs-extra": "^11.3.1",
     "i18next": "^25.3.2",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/chokidar": "^1.7.5",
     "@types/cors": "^2.8.19",
     "@types/fs-extra": "^11.0.4",
     "@types/mime-types": "^3.0.1",
