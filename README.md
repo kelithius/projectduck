@@ -60,25 +60,38 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 ProjectDuck/
 ├── src/
 │   ├── app/                    # Next.js App Router
-│   │   ├── api/               # API routes (replaces Express backend)
+│   │   ├── api/               # API routes
+│   │   │   ├── directory/     # Directory listing API
+│   │   │   ├── file/         # File operations API
+│   │   │   └── projects/     # Project configuration API
 │   │   ├── layout.tsx         # Root layout
 │   │   └── page.tsx          # Home page
 │   ├── components/
 │   │   ├── layout/AppLayout.tsx      # Main app layout
 │   │   ├── fileTree/FileTree.tsx     # File tree component
 │   │   ├── contentViewer/           # Content viewer components
+│   │   │   ├── ContentViewer.tsx    # Main content viewer
+│   │   │   ├── MarkdownViewer.tsx   # Markdown renderer
+│   │   │   ├── CodeViewer.tsx       # Code syntax highlighter
+│   │   │   └── MediaViewer.tsx      # Image/video viewer
+│   │   ├── project/              # Project management components
 │   │   └── WarningSupressor.tsx    # SSR hydration warning handler
 │   ├── lib/
 │   │   ├── services/          # API and utility services
-│   │   ├── providers/         # Context Providers
+│   │   ├── providers/         # Context providers (theme, project)
+│   │   ├── hooks/            # Custom React hooks
 │   │   ├── i18n/             # Internationalization config
 │   │   └── types.ts          # TypeScript type definitions
-│   └── styles/               # Global styles
-├── public/                   # Static assets
+│   └── styles/               # Component styles
+├── public/
+│   └── locales/              # Translation files
+├── docker/                   # Docker configuration and scripts
 ├── example/                  # Example files directory
+├── projects.json            # Project configuration file
 ├── next.config.ts           # Next.js configuration
 ├── next-i18next.config.js   # Internationalization config
-└── CLAUDE.md               # Claude Code development guide
+├── package.json             # Dependencies and scripts
+└── tsconfig.json            # TypeScript configuration
 ```
 
 ## 🚀 Quick Start
@@ -403,7 +416,7 @@ MIT License
 ## 📞 Support
 
 - **Issues**: Submit issue reports on GitHub
-- **Development Guide**: Refer to the `CLAUDE.md` file
+- **Development Guide**: Check the source code and inline documentation
 
 ---
 
