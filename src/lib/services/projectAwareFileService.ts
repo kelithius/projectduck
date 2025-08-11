@@ -48,6 +48,7 @@ export class ProjectAwareFileService {
           name: item,
           path: relativePath || '.',
           type: itemStats.isDirectory() ? 'directory' : 'file',
+          size: itemStats.isFile() ? itemStats.size : undefined,
           modified: itemStats.mtime.toISOString(),
           extension: itemStats.isFile() ? path.extname(item).toLowerCase().slice(1) : undefined
         };
