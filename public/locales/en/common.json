@@ -10,7 +10,8 @@
     "title": "File Explorer",
     "searchPlaceholder": "Search files...",
     "noFiles": "No files found",
-    "loadingError": "Error loading files"
+    "loadingError": "Error loading files",
+    "noProject": "No project available"
   },
   "fileViewer": {
     "selectFile": "Please select a file to view",
@@ -25,6 +26,24 @@
   },
   "markdown": {
     "tocTitle": "Table of Contents"
+  },
+  "mermaid": {
+    "title": "Mermaid Chart",
+    "notAvailable": "Chart rendering is temporarily unavailable",
+    "showSource": "Show source code"
+  },
+  "project": {
+    "sidebar": {
+      "title": "Select Project",
+      "error": "Error occurred while loading projects",
+      "available": "Available Projects",
+      "unavailable": "Inaccessible Projects",
+      "noProjects": "No projects found"
+    },
+    "item": {
+      "error": "Error",
+      "unavailable": "This project is not accessible"
+    }
   },
   "language": {
     "switch": "Switch Language",

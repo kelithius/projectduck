@@ -117,7 +117,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
             fontSize: '10px', 
             color: '#1890ff' 
           }}>
-            載入中...
+{t('status.loading')}
           </span>
         )}
       </span>

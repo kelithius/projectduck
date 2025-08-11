@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface MermaidRendererProps {
   chart: string;
@@ -8,6 +9,8 @@ interface MermaidRendererProps {
 }
 
 export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, darkMode = false }) => {
+  const { t } = useTranslation();
+  
   return (
     <div 
       style={{
@@ -20,10 +23,10 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, darkMod
         color: darkMode ? '#7d8590' : '#656d76'
       }}
     >
-      <strong>Mermaid 圖表</strong><br/>
-      <small>圖表渲染功能暫時不可用</small>
+      <strong>{t('mermaid.title')}</strong><br/>
+      <small>{t('mermaid.notAvailable')}</small>
       <details style={{ marginTop: '10px', textAlign: 'left' }}>
-        <summary style={{ cursor: 'pointer' }}>顯示原始碼</summary>
+        <summary style={{ cursor: 'pointer' }}>{t('mermaid.showSource')}</summary>
         <pre style={{ 
           marginTop: '10px', 
           padding: '10px', 

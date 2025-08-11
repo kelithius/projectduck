@@ -120,7 +120,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
           {!project.isValid && project.errorMessage && (
             <div>
               <Text style={errorStyle}>
-                {t('project.item.error', '錯誤')}: {project.errorMessage}
+                {t('project.item.error')}: {project.errorMessage}
               </Text>
             </div>
           )}
@@ -139,7 +139,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   if (disabled) {
     return (
       <Tooltip 
-        title={project.errorMessage || t('project.item.unavailable', '此專案無法存取')}
+        title={project.errorMessage || t('project.item.unavailable')}
         placement="right"
       >
         <div 
