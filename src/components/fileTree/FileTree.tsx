@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Tree, Spin, Input, App } from 'antd';
+import type { InputRef } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
@@ -35,6 +36,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
   const [autoExpandParent, setAutoExpandParent] = useState(true);
   const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
+  const searchInputRef = useRef<InputRef>(null);
 
   const fileItemToTreeNode = (item: FileItem): TreeDataNode => {
     return {
@@ -357,9 +359,17 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     <div className={styles.fileTreeContainer}>
       <div className={styles.searchWrapper}>
         <Input
+          ref={searchInputRef}
           placeholder={t('fileTree.searchPlaceholder')}
           allowClear={true}
+          value={searchValue}
           onChange={e => onSearch(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              onSearch('');
+            }
+          }}
           prefix={<SearchOutlined />}
         />
       </div>
