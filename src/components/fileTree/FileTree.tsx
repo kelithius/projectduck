@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tree, Spin, Input, App } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
 interface ExtendedTreeDataNode extends DataNode {
@@ -16,7 +17,6 @@ import { useProject } from '@/lib/providers/project-provider';
 import { FileIcon } from './FileIcon';
 import styles from './FileTree.module.css';
 
-const { Search } = Input;
 
 interface FileTreeProps {
   onFileSelect: (file: FileItem | null) => void;
@@ -356,9 +356,11 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
   return (
     <div className={styles.fileTreeContainer}>
       <div className={styles.searchWrapper}>
-        <Search
+        <Input
           placeholder={t('fileTree.searchPlaceholder')}
+          allowClear={true}
           onChange={e => onSearch(e.target.value)}
+          prefix={<SearchOutlined />}
         />
       </div>
       
