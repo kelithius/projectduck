@@ -170,13 +170,15 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   </div>
                   {validProjects.map((project) => {
                     const projectIndex = projects.indexOf(project);
+                    const isCurrentProject = currentProject?.name === project.name;
                     return (
                       <ProjectItem
                         key={projectIndex}
                         project={project}
-                        isActive={currentProject === project}
-                        onClick={() => handleProjectSelect(projectIndex)}
+                        isActive={isCurrentProject}
+                        onClick={isCurrentProject ? () => {} : () => handleProjectSelect(projectIndex)}
                         isDark={isDark}
+                        disabled={false}
                       />
                     );
                   })}

@@ -28,21 +28,47 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   const [isHovered, setIsHovered] = useState(false);
 
   const getStatusIcon = () => {
-    if (project.isValid) {
-      return isActive ? (
-        <CheckCircleOutlined style={{ color: '#52c41a' }} />
-      ) : (
-        <FolderOutlined style={{ color: isDark ? '#8c8c8c' : '#1890ff' }} />
+    const containerStyle = {
+      width: '20px',
+      height: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative' as const
+    };
+
+    const iconStyle = {
+      fontSize: '16px',
+      lineHeight: '1',
+      position: 'absolute' as const,
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)'
+    };
+
+    if (!project.isValid) {
+      return (
+        <div style={containerStyle}>
+          <ExclamationCircleOutlined style={{ ...iconStyle, color: '#ff4d4f' }} />
+        </div>
       );
     } else {
-      return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />;
+      // 無論選中與否都使用 FolderOutlined，只改變顏色
+      const color = isActive 
+        ? (isDark ? '#ffffff' : '#1890ff')  // 選中時的顏色
+        : (isDark ? '#8c8c8c' : '#1890ff'); // 未選中時的顏色
+      return (
+        <div style={containerStyle}>
+          <FolderOutlined style={{ ...iconStyle, color }} />
+        </div>
+      );
     }
   };
 
   const getItemStyle = (): React.CSSProperties => {
     let backgroundColor = 'transparent';
 
-    if (disabled) {
+    if (disabled && !isActive) {
       backgroundColor = isDark ? '#1a1a1a' : '#f5f5f5';
     } else if (isActive) {
       backgroundColor = isDark ? '#177ddc' : '#e6f7ff';
@@ -58,7 +84,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   const titleStyle = {
     fontSize: '14px',
     fontWeight: isActive ? 600 : 500,
-    color: disabled 
+    color: disabled && !isActive
       ? (isDark ? '#595959' : '#8c8c8c')
       : isActive 
         ? (isDark ? '#ffffff' : '#1890ff')
@@ -87,36 +113,30 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
 
   const content = (
     <div style={{ width: '100%' }}>
-      <Space align="start" size={8} style={{ width: '100%' }}>
-        <div style={{ marginTop: '2px' }}>
+      <Space align="start" size={12} style={{ width: '100%' }}>
+        <div style={{ 
+          marginTop: '2px',
+          flexShrink: 0
+        }}>
           {getStatusIcon()}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Text style={titleStyle}>
-            {project.name}
-          </Text>
-          {!project.isValid && project.errorMessage && (
-            <Text style={errorStyle}>
-              {t('project.item.error', '錯誤')}: {project.errorMessage}
+          <div>
+            <Text style={titleStyle}>
+              {project.name}
             </Text>
+          </div>
+          {!project.isValid && project.errorMessage && (
+            <div>
+              <Text style={errorStyle}>
+                {t('project.item.error', '錯誤')}: {project.errorMessage}
+              </Text>
+            </div>
           )}
         </div>
       </Space>
     </div>
   );
-
-  if (disabled) {
-    return (
-      <Tooltip 
-        title={project.errorMessage || t('project.item.unavailable', '此專案無法存取')}
-        placement="right"
-      >
-        <div style={getItemStyle()}>
-          {content}
-        </div>
-      </Tooltip>
-    );
-  }
 
   const getClassName = () => {
     const classes = [styles.projectItem];
@@ -125,16 +145,39 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
     return classes.join(' ');
   };
 
+  if (disabled) {
+    return (
+      <Tooltip 
+        title={project.errorMessage || t('project.item.unavailable', '此專案無法存取')}
+        placement="right"
+      >
+        <div 
+          style={{
+            ...getItemStyle(),
+            cursor: 'not-allowed',
+            userSelect: 'none'
+          }}
+          className={getClassName()}
+        >
+          {content}
+        </div>
+      </Tooltip>
+    );
+  }
+
   return (
-    <Button
-      style={getItemStyle()}
-      onClick={onClick}
-      type="text"
+    <div
+      style={{
+        ...getItemStyle(),
+        cursor: disabled ? 'not-allowed' : isActive ? 'default' : 'pointer',
+        userSelect: 'none'
+      }}
+      onClick={disabled ? undefined : onClick}
       className={getClassName()}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => !disabled && !isActive && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {content}
-    </Button>
+    </div>
   );
 };

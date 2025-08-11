@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { Layout, Typography, Spin, Switch, Space, App, Button } from 'antd';
-import { BulbOutlined, MoonOutlined, MenuOutlined } from '@ant-design/icons';
+import { BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
@@ -119,24 +119,40 @@ const AppLayoutInner: React.FC = () => {
         <Space align="center" size="middle" style={{ alignItems: 'center' }}>
           <Button
             type="text"
-            icon={<MenuOutlined />}
             onClick={toggleProjectSidebar}
             style={{
-              color: isDark ? '#fff' : '#1890ff',
-              borderRadius: '4px'
+              color: isDark ? '#b8b8b8' : '#666666',
+              borderRadius: '6px',
+              padding: '4px 8px',
+              height: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
             aria-label="Toggle project sidebar"
-          />
-          <img 
-            src="/AppIcon.png" 
-            alt="ProjectDuck Icon" 
-            style={{ 
-              width: '32px', 
-              height: '32px',
-              borderRadius: '8px',
-              display: 'block'
-            }}
-          />
+          >
+            <svg 
+              width="12" 
+              height="14" 
+              viewBox="0 0 12 14" 
+              fill="none" 
+              style={{ display: 'block' }}
+            >
+              <rect x="0" y="0" width="12" height="2.5" fill="currentColor"/>
+              <rect x="0" y="5.5" width="12" height="2.5" fill="currentColor"/>
+              <rect x="0" y="11" width="12" height="2.5" fill="currentColor"/>
+            </svg>
+            <img 
+              src="/AppIcon.png" 
+              alt="ProjectDuck Icon" 
+              style={{ 
+                width: '32px', 
+                height: '32px',
+                borderRadius: '8px',
+                display: 'block'
+              }}
+            />
+          </Button>
           <Title 
             level={3} 
             style={{ 
