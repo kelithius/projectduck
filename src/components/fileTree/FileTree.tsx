@@ -145,11 +145,9 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
       setHasError(false);
       
       // 確保 getCurrentBasePath 返回的是字串而不是 Promise
-      let currentBasePath;
+      let currentBasePath: string;
       try {
-        const basePathResult = getCurrentBasePath();
-        // 檢查是否為 Promise，如果是則 await
-        currentBasePath = basePathResult instanceof Promise ? await basePathResult : basePathResult;
+        currentBasePath = getCurrentBasePath();
       } catch (error) {
         console.error('Error getting base path:', error);
         setHasError(true);
@@ -192,10 +190,9 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     
     try {
       // 確保 getCurrentBasePath 返回的是字串而不是 Promise
-      let currentBasePath;
+      let currentBasePath: string;
       try {
-        const basePathResult = getCurrentBasePath();
-        currentBasePath = basePathResult instanceof Promise ? await basePathResult : basePathResult;
+        currentBasePath = getCurrentBasePath();
       } catch (error) {
         console.error('Error getting base path:', error);
         message.error(t('fileTree.noProject', '沒有可用的專案'));

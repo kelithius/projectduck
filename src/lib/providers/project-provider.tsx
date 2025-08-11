@@ -60,7 +60,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       
       // 如果沒有儲存的專案或無效，使用第一個有效專案
       if (!targetProject && validProjects.length > 0) {
-        targetProject = validProjects.find(p => p.isValid) || null;
+        targetProject = validProjects[0];
       }
       
       setCurrentProject(targetProject);

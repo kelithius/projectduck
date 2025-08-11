@@ -203,26 +203,193 @@ export async function GET(request: NextRequest) {
 
 ## 🚢 Deployment
 
-### Vercel (Recommended)
-1. Connect GitHub repository to Vercel
-2. Automatically detect Next.js project and deploy
-3. Set environment variable `BASE_PATH`
+### Docker Deployment (Recommended)
 
-### Docker Deployment
+ProjectDuck is containerized and available as `kelithius/projectduck` Docker image.
+
+#### Quick Start
+
+**Important:** ProjectDuck requires a `projects.json` configuration file.
+
 ```bash
-# Build Docker image
-docker build -t project-duck .
+# Create required configuration
+echo '{
+  "version": "1.0",
+  "projects": [
+    {
+      "name": "My Documents", 
+      "path": "/data/docs"
+    }
+  ]
+}' > projects.json
 
-# Run container
-docker run -p 3000:3000 -e BASE_PATH=/your/path project-duck
+# Pull and run with configuration
+docker run -d -p 3000:3000 \
+  --name projectduck \
+  -v $(pwd)/projects.json:/app/projects.json \
+  -v /path/to/your/docs:/data/docs \
+  kelithius/projectduck:latest
 ```
 
+#### Custom Document Directories
+
+Mount your document directories using Docker volumes:
+
+```bash
+docker run -d -p 3000:3000 \
+  --name projectduck \
+  -v /path/to/your/docs:/data/docs \
+  -v /path/to/project:/data/project \
+  kelithius/projectduck:latest
+```
+
+#### Custom Project Configuration
+
+Create a custom `projects.json` file and mount it:
+
+```bash
+# Create custom projects.json
+cat > my-projects.json << EOF
+{
+  "version": "1.0",
+  "projects": [
+    {
+      "name": "My Documentation",
+      "path": "/data/docs"
+    },
+    {
+      "name": "Project Files",
+      "path": "/data/project"
+    }
+  ]
+}
+EOF
+
+# Run with custom configuration
+docker run -d -p 3000:3000 \
+  --name projectduck \
+  -v $(pwd)/my-projects.json:/app/projects.json \
+  -v /path/to/docs:/data/docs \
+  -v /path/to/project:/data/project \
+  kelithius/projectduck:latest
+```
+
+#### Docker Compose
+
+Create a `docker-compose.yml` file for easier management:
+
+```yaml
+version: '3.8'
+
+services:
+  projectduck:
+    image: kelithius/projectduck:latest
+    container_name: projectduck
+    restart: unless-stopped
+    
+    ports:
+      - "3000:3000"
+    
+    # Environment variables
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    
+    # Volume mounts for custom documents and configuration
+    volumes:
+      # Mount your document directories here
+      - /path/to/your/docs:/data/docs
+      - /path/to/another/project:/data/project2
+      
+      # Optional: Custom projects.json configuration
+      # - ./custom-projects.json:/app/projects.json
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+```
+
+Then run:
+
+```bash
+# Start with docker-compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+#### Build Your Own Image
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd ProjectDuck
+
+# Build using the build script
+cd docker/scripts
+./build.sh build
+
+# Or build manually (from project root)
+docker build -f docker/Dockerfile -t my-projectduck .
+
+# Run your custom image
+docker run -d -p 3000:3000 my-projectduck
+```
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Port number for the server |
+| `NODE_ENV` | `production` | Node.js environment |
+| `HOSTNAME` | `0.0.0.0` | Hostname to bind to |
+
+#### Volume Mounts
+
+| Path | Purpose | Example |
+|------|---------|---------|
+| `/data/*` | Custom document directories | `-v /host/docs:/data/docs` |
+| `/app/projects.json` | Project configuration | `-v ./my-config.json:/app/projects.json` |
+
+#### Health Check
+
+The container includes a health check endpoint at `/health`:
+
+```bash
+# Check container health
+curl http://localhost:3000/health
+```
+
+### Vercel Deployment
+
+1. Connect GitHub repository to Vercel
+2. Automatically detect Next.js project and deploy
+3. Configure environment variables as needed
+
 ### Static Export (Limited Features)
+
 ```bash
 # Configure next.config.ts for static mode
 npm run build
 npm run export
 ```
+
+**Note:** Static export has limitations with API routes and dynamic features.
+
+For detailed Docker documentation and advanced configurations, see the [docker/README.md](docker/README.md).
 
 ## 📄 License
 

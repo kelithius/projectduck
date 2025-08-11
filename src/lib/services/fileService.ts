@@ -25,9 +25,10 @@ export class FileService {
   static async getDirectoryContents(
     requestPath: string = '', 
     page: number = 1, 
-    limit: number = 100
+    limit: number = 100,
+    basePath: string
   ): Promise<{ items: FileItem[]; totalCount: number; hasMore: boolean }> {
-    const safePath = SecurityService.validatePath(requestPath);
+    const safePath = SecurityService.validatePath(requestPath, basePath);
     
     try {
       const stats = await fs.stat(safePath);
@@ -42,7 +43,7 @@ export class FileService {
       for (const item of items) {
         const itemPath = path.join(safePath, item);
         const itemStats = await fs.stat(itemPath);
-        const relativePath = SecurityService.getRelativePath(itemPath);
+        const relativePath = SecurityService.getRelativePath(itemPath, basePath);
         
         const fileItem: FileItem = {
           name: item,
@@ -79,8 +80,8 @@ export class FileService {
     }
   }
 
-  static async getFileContent(requestPath: string): Promise<FileContentData> {
-    const safePath = SecurityService.validatePath(requestPath);
+  static async getFileContent(requestPath: string, basePath: string): Promise<FileContentData> {
+    const safePath = SecurityService.validatePath(requestPath, basePath);
     
     try {
       const stats = await fs.stat(safePath);
@@ -98,7 +99,7 @@ export class FileService {
       const content = await fs.readFile(safePath, 'utf-8');
       
       return {
-        path: SecurityService.getRelativePath(safePath),
+        path: SecurityService.getRelativePath(safePath, basePath),
         content,
         type: mimeType,
         encoding: 'utf-8',
@@ -109,15 +110,15 @@ export class FileService {
     }
   }
 
-  static async getFileInfo(requestPath: string): Promise<FileInfoData> {
-    const safePath = SecurityService.validatePath(requestPath);
+  static async getFileInfo(requestPath: string, basePath: string): Promise<FileInfoData> {
+    const safePath = SecurityService.validatePath(requestPath, basePath);
     
     try {
       const stats = await fs.stat(safePath);
       const mimeType = stats.isFile() ? (mime.lookup(safePath) || 'text/plain') : 'directory';
       
       return {
-        path: SecurityService.getRelativePath(safePath),
+        path: SecurityService.getRelativePath(safePath, basePath),
         name: path.basename(safePath),
         size: stats.size,
         type: mimeType,
@@ -129,17 +130,17 @@ export class FileService {
     }
   }
 
-  static async pathExists(requestPath: string): Promise<boolean> {
+  static async pathExists(requestPath: string, basePath: string): Promise<boolean> {
     try {
-      const safePath = SecurityService.validatePath(requestPath);
+      const safePath = SecurityService.validatePath(requestPath, basePath);
       return await fs.pathExists(safePath);
     } catch {
       return false;
     }
   }
 
-  static async getFileStream(requestPath: string): Promise<fs.ReadStream> {
-    const safePath = SecurityService.validatePath(requestPath);
+  static async getFileStream(requestPath: string, basePath: string): Promise<fs.ReadStream> {
+    const safePath = SecurityService.validatePath(requestPath, basePath);
     
     try {
       const stats = await fs.stat(safePath);

@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const path = searchParams.get('path');
+    const basePath = searchParams.get('basePath');
     
     if (!path) {
       const errorResponse: ApiError = {
@@ -15,7 +16,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
     
-    const info = await FileService.getFileInfo(path);
+    if (!basePath) {
+      const errorResponse: ApiError = {
+        success: false,
+        error: 'BasePath parameter is required'
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+    
+    const info = await FileService.getFileInfo(path, basePath);
     
     const response: FileInfoResponse = {
       success: true,
