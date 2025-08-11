@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Layout, Typography, Spin, Switch, Space, App } from 'antd';
-import { BulbOutlined, MoonOutlined } from '@ant-design/icons';
+import { Layout, Typography, Spin, Switch, Space, App, Button } from 'antd';
+import { BulbOutlined, MoonOutlined, MenuOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { FileTree } from '@/components/fileTree/FileTree';
+import { ProjectSidebar } from '@/components/project/ProjectSidebar';
 import { FileItem } from '@/lib/types';
 import apiService from '@/lib/services/api';
 import { ThemeProvider, useTheme } from '@/lib/providers/theme-provider';
+import { ProjectProvider } from '@/lib/providers/project-provider';
 
 const ContentViewer = React.lazy(() => 
   import('@/components/contentViewer/ContentViewer').then(module => ({
@@ -27,6 +29,7 @@ const AppLayoutInner: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [projectSidebarVisible, setProjectSidebarVisible] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -53,8 +56,12 @@ const AppLayoutInner: React.FC = () => {
     };
   }, [message, t]);
 
-  const handleFileSelect = (file: FileItem) => {
+  const handleFileSelect = (file: FileItem | null) => {
     setSelectedFile(file);
+  };
+
+  const toggleProjectSidebar = () => {
+    setProjectSidebarVisible(!projectSidebarVisible);
   };
 
   if (!mounted) {
@@ -110,6 +117,16 @@ const AppLayoutInner: React.FC = () => {
     <Layout style={{ height: '100vh' }}>
       <Header style={headerStyle}>
         <Space align="center" size="middle" style={{ alignItems: 'center' }}>
+          <Button
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={toggleProjectSidebar}
+            style={{
+              color: isDark ? '#fff' : '#1890ff',
+              borderRadius: '4px'
+            }}
+            aria-label="Toggle project sidebar"
+          />
           <img 
             src="/AppIcon.png" 
             alt="ProjectDuck Icon" 
@@ -181,6 +198,12 @@ const AppLayoutInner: React.FC = () => {
           </Allotment.Pane>
         </Allotment>
       </Content>
+      
+      <ProjectSidebar
+        visible={projectSidebarVisible}
+        onClose={() => setProjectSidebarVisible(false)}
+        isDark={isDark}
+      />
     </Layout>
   );
 };
@@ -188,7 +211,9 @@ const AppLayoutInner: React.FC = () => {
 export const AppLayout: React.FC = () => {
   return (
     <ThemeProvider>
-      <AppLayoutInner />
+      <ProjectProvider>
+        <AppLayoutInner />
+      </ProjectProvider>
     </ThemeProvider>
   );
 };

@@ -20,23 +20,30 @@ class ApiService {
     }
   }
 
-  async getDirectory(path: string = ''): Promise<DirectoryResponse> {
-    const cacheKey = `directory:${path}`;
+  async getDirectory(path: string = '', basePath?: string): Promise<DirectoryResponse> {
+    const cacheKey = basePath ? `directory:${basePath}:${path}` : `directory:${path}`;
     const cached = cacheService.get<DirectoryResponse>(cacheKey);
     
     if (cached) {
       return cached;
     }
 
-    const url = path ? `/directory?path=${encodeURIComponent(path)}` : '/directory';
+    let url = path ? `/directory?path=${encodeURIComponent(path)}` : '/directory';
+    if (basePath) {
+      url += `${path ? '&' : '?'}basePath=${encodeURIComponent(basePath)}`;
+    }
+    
     const result = await this.request<DirectoryResponse>(url);
     
-    cacheService.set(cacheKey, result, 2);
+    // 如果回應包含錯誤或使用了降級機制，縮短快取時間
+    const cacheTime = result.error || result.fallbackUsed ? 0.5 : 2;
+    cacheService.set(cacheKey, result, cacheTime);
+    
     return result;
   }
 
-  async getFileContent(path: string): Promise<FileContentResponse> {
-    const cacheKey = `file-content:${path}`;
+  async getFileContent(path: string, basePath?: string): Promise<FileContentResponse> {
+    const cacheKey = basePath ? `file-content:${basePath}:${path}` : `file-content:${path}`;
     const cached = cacheService.get<FileContentResponse>(cacheKey);
     
     if (cached) {
@@ -44,7 +51,12 @@ class ApiService {
     }
 
     const encodedPath = encodeURIComponent(path);
-    const result = await this.request<FileContentResponse>(`/file/content?path=${encodedPath}`);
+    let url = `/file/content?path=${encodedPath}`;
+    if (basePath) {
+      url += `&basePath=${encodeURIComponent(basePath)}`;
+    }
+    
+    const result = await this.request<FileContentResponse>(url);
     
     cacheService.set(cacheKey, result, 5);
     return result;

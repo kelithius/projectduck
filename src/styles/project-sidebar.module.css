@@ -1,0 +1,143 @@
+/* ProjectSidebar 樣式 */
+.projectSidebar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.projectSidebarHeader {
+  padding: 16px 24px;
+}
+
+.projectSidebarBody {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 0;
+}
+
+/* ProjectItem 樣式 */
+.projectItem {
+  width: 100% !important;
+  padding: 12px 16px !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  text-align: left !important;
+  height: auto !important;
+  min-height: 48px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  transition: all 0.2s ease !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.projectItem:hover {
+  box-shadow: none !important;
+}
+
+.projectItem:focus {
+  box-shadow: none !important;
+}
+
+.active {
+  border-left: 3px solid #1890ff !important;
+}
+
+.disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.disabled:hover {
+  cursor: not-allowed !important;
+}
+
+/* 內容樣式 */
+.projectItemContent {
+  width: 100%;
+}
+
+.projectItemIcon {
+  margin-top: 2px;
+}
+
+.projectItemDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.projectItemTitle {
+  font-size: 14px;
+  margin: 0;
+  line-height: 20px;
+}
+
+.projectItemDescription {
+  font-size: 12px;
+  margin: 4px 0 0 0;
+  line-height: 16px;
+}
+
+.projectItemPath {
+  font-size: 11px;
+  margin: 2px 0 0 0;
+  line-height: 14px;
+  word-break: break-all;
+}
+
+.projectItemError {
+  font-size: 11px;
+  color: #ff4d4f;
+  margin: 2px 0 0 0;
+  line-height: 14px;
+}
+
+/* 自定義滾動條 */
+.projectSidebarBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.projectSidebarBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.projectSidebarBody::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.projectSidebarBody::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* 動畫效果 */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.entering {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.exiting {
+  animation: slideOut 0.3s ease-in forwards;
+}

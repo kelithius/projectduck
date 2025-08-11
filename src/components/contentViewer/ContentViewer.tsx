@@ -5,6 +5,7 @@ import { Card, Spin, Alert, Typography, Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { FileItem } from '@/lib/types';
 import apiService from '@/lib/services/api';
+import { useProject } from '@/lib/providers/project-provider';
 import { MarkdownViewer } from './MarkdownViewer';
 import { MediaViewer } from './MediaViewer';
 import { CodeViewer } from './CodeViewer';
@@ -18,6 +19,7 @@ interface ContentViewerProps {
 
 export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, darkMode = false }) => {
   const { t } = useTranslation();
+  const { getCurrentBasePath } = useProject();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,13 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
       setLoading(true);
       setError(null);
       
-      const response = await apiService.getFileContent(file.path);
+      const currentBasePath = getCurrentBasePath();
+      if (!currentBasePath) {
+        setError(t('fileTree.noProject', '沒有可用的專案'));
+        return;
+      }
+      
+      const response = await apiService.getFileContent(file.path, currentBasePath);
       
       if (response.success) {
         setContent(response.data.content);

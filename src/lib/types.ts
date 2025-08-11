@@ -19,6 +19,7 @@ export interface DirectoryResponse {
     limit?: number;
   };
   error?: string;
+  fallbackUsed?: boolean; // 指示是否使用了降級機制
 }
 
 export interface FileContentResponse {
@@ -52,6 +53,41 @@ export interface ApiError {
   code?: string;
 }
 
+// 專案管理相關類型
+export interface Project {
+  name: string;
+  path: string;
+}
+
+export interface ProjectValidationResult extends Project {
+  isValid: boolean;
+  errorMessage?: string;
+}
+
+export interface ProjectConfig {
+  version: string;
+  projects: Project[];
+}
+
+export interface ProjectContextState {
+  projects: ProjectValidationResult[];
+  currentProject: ProjectValidationResult | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface ProjectContextActions {
+  loadProjects: () => Promise<void>;
+  switchProject: (projectIndex: number) => Promise<void>;
+  getCurrentBasePath: () => string;
+}
+
+export interface ProjectsResponse {
+  success: boolean;
+  data?: ProjectConfig & { projects: ProjectValidationResult[] };
+  error?: string;
+}
+
 export interface AppState {
   fileTree: {
     rootPath: string;
@@ -72,4 +108,7 @@ export interface AppState {
     collapsedSections: string[];
     theme: 'light' | 'dark';
   };
+
+  // 專案狀態
+  projects: ProjectContextState;
 }

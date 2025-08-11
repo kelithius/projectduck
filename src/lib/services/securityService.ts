@@ -1,17 +1,13 @@
 import path from 'path';
 
 export class SecurityService {
-  private static get BASE_PATH(): string {
-    return process.env.BASE_PATH || process.cwd();
-  }
-
-  static validatePath(requestPath: string = ''): string {
+  static validatePath(requestPath: string = '', basePath: string): string {
     const cleanPath = requestPath 
       ? requestPath.replace(/\/+/g, '/').replace(/\/\./g, '/') 
       : '';
     
-    const resolvedPath = path.resolve(this.BASE_PATH, cleanPath);
-    const resolvedBasePath = path.resolve(this.BASE_PATH);
+    const resolvedPath = path.resolve(basePath, cleanPath);
+    const resolvedBasePath = path.resolve(basePath);
 
     if (!resolvedPath.startsWith(resolvedBasePath)) {
       throw new Error('Path traversal attack detected');
@@ -20,21 +16,17 @@ export class SecurityService {
     return resolvedPath;
   }
 
-  static isPathSafe(requestPath: string): boolean {
+  static isPathSafe(requestPath: string, basePath: string): boolean {
     try {
-      this.validatePath(requestPath);
+      this.validatePath(requestPath, basePath);
       return true;
     } catch {
       return false;
     }
   }
 
-  static getRelativePath(absolutePath: string): string {
-    const resolvedBasePath = path.resolve(this.BASE_PATH);
+  static getRelativePath(absolutePath: string, basePath: string): string {
+    const resolvedBasePath = path.resolve(basePath);
     return path.relative(resolvedBasePath, absolutePath);
-  }
-
-  static getBasePath(): string {
-    return this.BASE_PATH;
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tree, Spin, message, Input } from 'antd';
+import { Tree, Spin, Input, App } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 
 interface ExtendedTreeDataNode extends DataNode {
@@ -12,18 +12,22 @@ type TreeDataNode = ExtendedTreeDataNode;
 import { useTranslation } from 'react-i18next';
 import { FileItem } from '@/lib/types';
 import apiService from '@/lib/services/api';
+import { useProject } from '@/lib/providers/project-provider';
 import { FileIcon } from './FileIcon';
 import styles from './FileTree.module.css';
 
 const { Search } = Input;
 
 interface FileTreeProps {
-  onFileSelect: (file: FileItem) => void;
+  onFileSelect: (file: FileItem | null) => void;
   darkMode?: boolean;
+  resetTrigger?: number; // 用於觸發重置的 prop
 }
 
-const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = false }) => {
+const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = false, resetTrigger }) => {
+  const { message } = App.useApp();
   const { t } = useTranslation();
+  const { getCurrentBasePath, currentProject, isLoading: projectLoading } = useProject();
   const [treeData, setTreeData] = useState<TreeDataNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -31,6 +35,8 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
   const [autoExpandParent, setAutoExpandParent] = useState(true);
   const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [fallbackUsed, setFallbackUsed] = useState(false);
 
   const fileItemToTreeNode = (item: FileItem): TreeDataNode => {
     return {
@@ -120,30 +126,88 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     );
   };
 
+  const resetFileTree = useCallback(() => {
+    setTreeData([]);
+    setExpandedKeys([]);
+    setSearchValue('');
+    setAutoExpandParent(true);
+    setLoadingNodes(new Set());
+    setOperationInProgress(null);
+    setHasError(false);
+    setFallbackUsed(false);
+    // 重置時清除選中的檔案
+    onFileSelect(null);
+  }, [onFileSelect]);
+
   const loadRootDirectory = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiService.getDirectory('');
+      setHasError(false);
+      
+      // 確保 getCurrentBasePath 返回的是字串而不是 Promise
+      let currentBasePath;
+      try {
+        const basePathResult = getCurrentBasePath();
+        // 檢查是否為 Promise，如果是則 await
+        currentBasePath = basePathResult instanceof Promise ? await basePathResult : basePathResult;
+      } catch (error) {
+        console.error('Error getting base path:', error);
+        setHasError(true);
+        message.error(t('fileTree.noProject', '沒有可用的專案'));
+        return;
+      }
+      
+      if (!currentBasePath) {
+        setHasError(true);
+        message.error(t('fileTree.noProject', '沒有可用的專案'));
+        return;
+      }
+      
+      const response = await apiService.getDirectory('', currentBasePath);
       
       if (response.success) {
         const nodes = response.data.items.map(fileItemToTreeNode);
         setTreeData(nodes);
+        
+        // 處理降級機制的警告
+        if (response.fallbackUsed) {
+          setFallbackUsed(true);
+          message.warning(response.error || t('fileTree.fallbackWarning', '使用備用目錄'));
+        }
       } else {
+        setHasError(true);
         message.error(response.error || t('fileTree.loadingError'));
       }
     } catch (error) {
+      setHasError(true);
       message.error(t('fileTree.loadingError'));
       console.error('Failed to load directory:', error);
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [getCurrentBasePath, message, t]);
 
   const onLoadData = useCallback(async (node: TreeDataNode): Promise<void> => {
     const { key } = node;
     
     try {
-      const response = await apiService.getDirectory(key as string);
+      // 確保 getCurrentBasePath 返回的是字串而不是 Promise
+      let currentBasePath;
+      try {
+        const basePathResult = getCurrentBasePath();
+        currentBasePath = basePathResult instanceof Promise ? await basePathResult : basePathResult;
+      } catch (error) {
+        console.error('Error getting base path:', error);
+        message.error(t('fileTree.noProject', '沒有可用的專案'));
+        return;
+      }
+      
+      if (!currentBasePath) {
+        message.error(t('fileTree.noProject', '沒有可用的專案'));
+        return;
+      }
+      
+      const response = await apiService.getDirectory(key as string, currentBasePath);
       
       if (response.success) {
         const childNodes = response.data.items.map(fileItemToTreeNode);
@@ -151,6 +215,11 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
         setTreeData(prevData => 
           updateTreeData(prevData, key as string, childNodes)
         );
+        
+        // 如果使用了降級機制，顯示警告
+        if (response.fallbackUsed) {
+          message.warning(response.error || t('fileTree.fallbackWarning', '使用備用目錄'));
+        }
       } else {
         message.error(response.error || t('fileTree.loadingError'));
       }
@@ -158,7 +227,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
       message.error(t('fileTree.loadingError'));
       console.error('Failed to load subdirectory:', error);
     }
-  }, [t]);
+  }, [getCurrentBasePath, message, t]);
 
   const updateTreeData = (
     list: TreeDataNode[], 
@@ -217,8 +286,23 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     let isCancelled = false;
     
     const loadRoot = async () => {
-      if (!isCancelled) {
+      // 等待專案載入完成
+      if (projectLoading) {
+        // 專案還在載入中，確保顯示載入狀態
+        setLoading(true);
+        setHasError(false);
+        return;
+      }
+      
+      // 專案載入完成後的處理
+      if (!isCancelled && currentProject) {
+        // 有可用專案，載入目錄
         await loadRootDirectory();
+      } else if (!isCancelled && !currentProject) {
+        // 專案載入完成但沒有可用專案時顯示錯誤
+        setLoading(false);
+        setHasError(true);
+        message.error(t('fileTree.noProject', '沒有可用的專案'));
       }
     };
     
@@ -227,7 +311,31 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [projectLoading, currentProject]);
+
+  // 監聽 resetTrigger 變化
+  useEffect(() => {
+    if (resetTrigger !== undefined) {
+      resetFileTree();
+      // 不使用 setTimeout，讓 React 的狀態更新週期處理
+      // loadRootDirectory 會在主要的 useEffect 中被觸發
+    }
+  }, [resetTrigger, resetFileTree]);
+
+  // 監聽專案變更事件
+  useEffect(() => {
+    const handleProjectChange = () => {
+      resetFileTree();
+      // 不使用 setTimeout，讓 React 的狀態更新週期處理
+      // loadRootDirectory 會在主要的 useEffect 中被觸發
+    };
+
+    window.addEventListener('projectChange', handleProjectChange);
+    
+    return () => {
+      window.removeEventListener('projectChange', handleProjectChange);
+    };
+  }, [resetFileTree]);
 
   if (loading) {
     return (
