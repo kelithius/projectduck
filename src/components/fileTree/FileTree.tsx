@@ -97,6 +97,30 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
 
     const isLoading = loadingNodes.has(nodeData.key?.toString() || '');
     
+    // 高亮搜尋文字
+    const renderHighlightText = (text: string, searchTerm: string) => {
+      if (!searchTerm) return text;
+      
+      const index = text.toLowerCase().indexOf(searchTerm.toLowerCase());
+      if (index === -1) return text;
+      
+      return (
+        <>
+          {text.substring(0, index)}
+          <span style={{ 
+            backgroundColor: darkMode ? '#faad14' : '#ffeb3b', 
+            color: darkMode ? '#000' : '#000',
+            fontWeight: 'bold',
+            padding: '0 2px',
+            borderRadius: '2px'
+          }}>
+            {text.substring(index, index + searchTerm.length)}
+          </span>
+          {text.substring(index + searchTerm.length)}
+        </>
+      );
+    };
+    
     return (
       <span 
         style={{ 
@@ -110,7 +134,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
         onClick={handleTitleClick}
       >
         <FileIcon type={item.type} extension={item.extension} />
-        <span>{item.name}</span>
+        <span>{renderHighlightText(item.name, searchValue)}</span>
         {isLoading && (
           <span style={{ 
             marginLeft: '4px', 
@@ -235,13 +259,16 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     const expandKeys: string[] = [];
     const searchInTree = (nodes: TreeDataNode[], parentKey?: string) => {
       nodes.forEach(node => {
-        const nodeTitle = typeof node.title === 'string' 
-          ? node.title 
-          : node.key as string;
+        const nodeTitle = node.data?.name || (typeof node.title === 'string' ? node.title : node.key as string);
         
-        if (nodeTitle.toLowerCase().includes(value.toLowerCase())) {
-          if (parentKey) {
+        if (nodeTitle && nodeTitle.toLowerCase().includes(value.toLowerCase())) {
+          // 找到匹配項目，展開其所有父級路徑
+          if (parentKey && !expandKeys.includes(parentKey)) {
             expandKeys.push(parentKey);
+          }
+          // 如果匹配的是資料夾，也要展開該資料夾本身
+          if (node.data?.type === 'directory' && !expandKeys.includes(node.key as string)) {
+            expandKeys.push(node.key as string);
           }
         }
         
