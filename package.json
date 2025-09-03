@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
+    "@anthropic-ai/claude-code": "^1.0.102",
     "allotment": "^1.20.4",
     "antd": "^5.26.7",
     "chokidar": "^4.0.3",
@@ -25,7 +26,8 @@
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^15.6.1",
     "rehype-highlight": "^7.0.2",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -38,6 +40,7 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "tailwindcss": "^4",

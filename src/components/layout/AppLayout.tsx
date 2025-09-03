@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { Layout, Typography, Spin, Switch, Space, App, Button } from 'antd';
-import { BulbOutlined, MoonOutlined } from '@ant-design/icons';
+import { BulbOutlined, MoonOutlined, MessageOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
@@ -19,6 +19,12 @@ const ContentViewer = React.lazy(() =>
   }))
 );
 
+const ChatPanel = React.lazy(() => 
+  import('@/components/chat/ChatPanel').then(module => ({
+    default: module.ChatPanel
+  }))
+);
+
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
@@ -30,6 +36,7 @@ const AppLayoutInner: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [projectSidebarVisible, setProjectSidebarVisible] = useState(false);
+  const [chatPanelVisible, setChatPanelVisible] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -62,6 +69,10 @@ const AppLayoutInner: React.FC = () => {
 
   const toggleProjectSidebar = () => {
     setProjectSidebarVisible(!projectSidebarVisible);
+  };
+
+  const toggleChatPanel = () => {
+    setChatPanelVisible(!chatPanelVisible);
   };
 
   if (!mounted) {
@@ -166,6 +177,17 @@ const AppLayoutInner: React.FC = () => {
         </Space>
         
         <Space align="center">
+          <Button
+            type="text"
+            icon={<MessageOutlined />}
+            onClick={toggleChatPanel}
+            style={{
+              color: chatPanelVisible 
+                ? '#1890ff' 
+                : (isDark ? '#b8b8b8' : '#666666')
+            }}
+            aria-label="Toggle chat panel"
+          />
           <BulbOutlined 
             style={{ 
               color: isDark ? '#595959' : '#1890ff',
@@ -189,14 +211,16 @@ const AppLayoutInner: React.FC = () => {
       </Header>
       
       <Content style={contentStyle}>
-        <Allotment defaultSizes={[300, 700]}>
+        <Allotment defaultSizes={chatPanelVisible ? [250, 450, 350] : [300, 700]}>
+          {/* Left Pane: File Tree */}
           <Allotment.Pane minSize={200} maxSize={600}>
             <div style={sidebarStyle}>
               <FileTree onFileSelect={handleFileSelect} darkMode={isDark} />
             </div>
           </Allotment.Pane>
           
-          <Allotment.Pane>
+          {/* Middle Pane: Content Viewer */}
+          <Allotment.Pane minSize={300}>
             <div style={{ height: '100%' }}>
               <Suspense fallback={
                 <div style={{ 
@@ -212,6 +236,24 @@ const AppLayoutInner: React.FC = () => {
               </Suspense>
             </div>
           </Allotment.Pane>
+
+          {/* Right Pane: Chat Panel (only when visible) */}
+          {chatPanelVisible && (
+            <Allotment.Pane minSize={300} maxSize={500}>
+              <Suspense fallback={
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%' 
+                }}>
+                  <Spin size="large" />
+                </div>
+              }>
+                <ChatPanel darkMode={isDark} />
+              </Suspense>
+            </Allotment.Pane>
+          )}
         </Allotment>
       </Content>
       
