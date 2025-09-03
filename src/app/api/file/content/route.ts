@@ -31,7 +31,14 @@ export async function GET(request: NextRequest) {
       data: content
     };
     
-    return NextResponse.json(response);
+    // 添加禁用快取的標頭，確保檔案內容總是最新的
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     const errorResponse: ApiError = {
       success: false,

@@ -6,8 +6,10 @@ import { SendOutlined, PaperClipOutlined, RobotOutlined, UserOutlined } from '@a
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { Message, FileAttachment } from '@/lib/types/chat';
-import claudeCodeService from '@/lib/services/claudeCodeService';
+import claudeCodeService, { type StreamEvent } from '@/lib/services/claudeCodeService';
 import { useProject } from '@/lib/providers/project-provider';
+import type { SDKMessage } from '@anthropic-ai/claude-code';
+import MessageBubble, { type ToolActivity } from './MessageBubble';
 
 const { TextArea } = Input;
 
@@ -24,8 +26,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [currentAssistantMessage, setCurrentAssistantMessage] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [toolActivities, setToolActivities] = useState<Map<string, ToolActivity[]>>(new Map());
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<File[]>([]);
+  const currentSessionRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,32 +41,49 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, currentAssistantMessage]);
 
+  // 檢查認證狀態
   useEffect(() => {
-    // 檢查認證狀態
     const checkAuth = async () => {
       const authStatus = await claudeCodeService.checkAuthentication();
       setIsAuthenticated(authStatus);
     };
-    
     checkAuth();
+  }, []);
+
+  // 監聽專案切換事件，清空對話內容
+  useEffect(() => {
+    const handleProjectChange = () => {
+      setMessages([]);
+      setCurrentAssistantMessage('');
+      setIsStreaming(false);
+      setIsThinking(false);
+      setToolActivities(new Map());
+      setCurrentAssistantMessageId('');
+    };
+
+    window.addEventListener('projectChange', handleProjectChange);
+    
+    return () => {
+      window.removeEventListener('projectChange', handleProjectChange);
+    };
   }, []);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() && attachments.length === 0) return;
     if (!isAuthenticated) {
-      antdMessage.warning('請先完成 Claude Code 認證');
+      antdMessage.error(t('chat.auth.error'));
       return;
     }
 
     const newMessage: Message = {
       id: uuidv4(),
       role: 'user',
-      content: inputValue.trim(),
+      content: inputValue.trim() || `[${t('chat.input.attachment')}]`,
       timestamp: new Date(),
-      attachments: attachments.length > 0 ? attachments : undefined,
-      status: 'sending'
+      status: 'sending',
+      attachments: [...attachments]
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -68,43 +93,192 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
     setAttachments([]);
     fileInputRef.current = [];
     setIsLoading(true);
+    setIsStreaming(true);
+    setIsThinking(true);
+
+    // 準備接收助理回應
+    const assistantMessageId = uuidv4();
+    setCurrentAssistantMessage('');
+    setCurrentAssistantMessageId(assistantMessageId);
 
     try {
       const currentProject = getCurrentBasePath();
-      const response = await claudeCodeService.sendMessage({
-        content: messageContent,
-        attachments: messageAttachments,
-        projectPath: currentProject || undefined
-      });
+      
+      if (!currentProject) {
+        throw new Error(t('chat.error.project'));
+      }
 
+      // 標記用戶訊息為已發送
       setMessages(prev => 
         prev.map(msg => 
           msg.id === newMessage.id ? { ...msg, status: 'sent' as const } : msg
         )
       );
 
-      if (response.success && response.data?.message) {
-        const assistantMessage: Message = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: response.data.message,
-          timestamp: new Date(),
-          status: 'sent'
-        };
-        
-        setMessages(prev => [...prev, assistantMessage]);
-      } else {
-        throw new Error(response.error || '未知錯誤');
-      }
+      // 使用 SSE 發送訊息
+      await claudeCodeService.sendMessageWithSSE(
+        {
+          content: messageContent,
+          attachments: messageAttachments,
+          projectPath: currentProject
+        },
+        (event: StreamEvent) => {
+          console.log('SSE Event:', event);
+
+          switch (event.type) {
+            case 'start':
+              console.log('Query started:', event.data.message);
+              // 保持思考動畫，直到收到實際文字回覆
+              break;
+
+            case 'message':
+              const sdkMessage = event.data.data as SDKMessage;
+              handleSDKMessage(sdkMessage, assistantMessageId);
+              break;
+
+            case 'complete':
+              console.log('Query completed');
+              setIsStreaming(false);
+              setIsThinking(false);
+              // 如果有累積的訊息內容，建立最終訊息
+              if (currentAssistantMessage.trim()) {
+                const finalMessage: Message = {
+                  id: assistantMessageId,
+                  role: 'assistant',
+                  content: currentAssistantMessage,
+                  timestamp: new Date(),
+                  status: 'sent'
+                };
+                setMessages(prev => [...prev, finalMessage]);
+                setCurrentAssistantMessage('');
+              }
+              break;
+
+            case 'error':
+              console.error('Query error:', event.data);
+              setIsStreaming(false);
+              setIsThinking(false);
+              antdMessage.error(t('chat.error.query') + (event.data.error || t('chat.error.unknown')));
+              break;
+          }
+        }
+      );
+
     } catch (error) {
+      console.error('Send message error:', error);
+      setIsStreaming(false);
+      setIsThinking(false);
       setMessages(prev => 
         prev.map(msg => 
           msg.id === newMessage.id ? { ...msg, status: 'error' as const } : msg
         )
       );
-      antdMessage.error(error instanceof Error ? error.message : '發送失敗，請重試');
+      antdMessage.error(error instanceof Error ? error.message : t('chat.error.send'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 處理 SDK 訊息
+  const handleSDKMessage = (sdkMessage: SDKMessage, assistantMessageId: string) => {
+    switch (sdkMessage.type) {
+      case 'assistant':
+        // 處理工具使用
+        if (sdkMessage.message.content && Array.isArray(sdkMessage.message.content)) {
+          for (const contentItem of sdkMessage.message.content) {
+            if (typeof contentItem === 'object' && contentItem.type === 'tool_use') {
+              // 添加新的工具活動
+              const newActivity: ToolActivity = {
+                toolName: contentItem.name,
+                toolInput: contentItem.input,
+                status: 'running',
+                timestamp: new Date()
+              };
+              
+              setToolActivities(prev => {
+                const current = prev.get(assistantMessageId) || [];
+                const updated = new Map(prev);
+                updated.set(assistantMessageId, [...current, newActivity]);
+                return updated;
+              });
+            } else if (typeof contentItem === 'object' && contentItem.type === 'text') {
+              // 處理文字內容 - 當收到文字內容時停止思考動畫
+              if (contentItem.text) {
+                setIsThinking(false);
+                setCurrentAssistantMessage(prev => prev + contentItem.text);
+              }
+            }
+          }
+        } else if (typeof sdkMessage.message.content === 'string') {
+          // 當收到文字內容時停止思考動畫
+          setIsThinking(false);
+          setCurrentAssistantMessage(prev => prev + sdkMessage.message.content);
+        }
+        break;
+        
+      case 'user':
+        // 更新工具狀態為已完成
+        if (sdkMessage.message.content && Array.isArray(sdkMessage.message.content)) {
+          for (const contentItem of sdkMessage.message.content) {
+            if (typeof contentItem === 'object' && contentItem.type === 'tool_result') {
+              setToolActivities(prev => {
+                const current = prev.get(assistantMessageId) || [];
+                const updated = new Map(prev);
+                const newActivities = current.map(activity => {
+                  // 找到對應的工具活動並更新狀態
+                  if (activity.status === 'running') {
+                    return { ...activity, status: 'completed' as const };
+                  }
+                  return activity;
+                });
+                updated.set(assistantMessageId, newActivities);
+                return updated;
+              });
+            }
+          }
+        }
+        break;
+        
+      case 'result':
+        if (sdkMessage.subtype === 'success') {
+          const finalMessage: Message = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: sdkMessage.result,
+            timestamp: new Date(),
+            status: 'sent'
+          };
+          setMessages(prev => [...prev, finalMessage]);
+          setCurrentAssistantMessage('');
+        } else {
+          const errorMessage: Message = {
+            id: uuidv4(),
+            role: 'system',
+            content: `${t('chat.error.execution')} ${sdkMessage.subtype}`,
+            timestamp: new Date(),
+            status: 'error'
+          };
+          setMessages(prev => [...prev, errorMessage]);
+          
+          // 將進行中的工具活動標記為錯誤
+          setToolActivities(prev => {
+            const current = prev.get(assistantMessageId) || [];
+            const updated = new Map(prev);
+            const newActivities = current.map(activity => {
+              if (activity.status === 'running') {
+                return { ...activity, status: 'error' as const };
+              }
+              return activity;
+            });
+            updated.set(assistantMessageId, newActivities);
+            return updated;
+          });
+        }
+        break;
+        
+      case 'system':
+        console.log('System message:', sdkMessage);
+        break;
     }
   };
 
@@ -154,7 +328,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
   const messagesStyle = {
     flex: 1,
     overflow: 'auto',
-    padding: '16px'
+    padding: '16px',
+    backgroundColor: darkMode ? '#1a1a1a' : '#fafafa',
+    fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+    fontSize: '14px'
   };
 
   const inputAreaStyle = {
@@ -163,161 +340,100 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
     backgroundColor: darkMode ? '#141414' : '#fafafa'
   };
 
+  if (isAuthenticated === null) {
+    return (
+      <div style={panelStyle}>
+        <div style={{ ...headerStyle, textAlign: 'center' }}>
+          <Spin size="small" /> {t('chat.status.checking')}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={panelStyle}>
+        <div style={headerStyle}>
+          <span style={{ color: darkMode ? '#ff4d4f' : '#ff4d4f', fontSize: '14px' }}>
+            ⚠ {t('chat.auth.required')}
+          </span>
+        </div>
+        <div style={{ ...messagesStyle, textAlign: 'center', color: darkMode ? '#999' : '#666' }}>
+          <p>{t('chat.auth.instruction')}</p>
+          <code style={{ 
+            backgroundColor: darkMode ? '#262626' : '#f5f5f5',
+            padding: '4px 8px',
+            borderRadius: '4px'
+          }}>
+            claude login
+          </code>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card style={panelStyle} bodyStyle={{ padding: 0, height: '100%', display: 'flex', flexDirection: 'column' }} className={className}>
+    <div style={panelStyle} className={className}>
       {/* Header */}
       <div style={headerStyle}>
-        <Space align="center">
-          <RobotOutlined style={{ color: darkMode ? '#1890ff' : '#1890ff', fontSize: '16px' }} />
-          <span style={{ color: darkMode ? '#fff' : '#000', fontWeight: 500 }}>
+        <Space>
+          <RobotOutlined style={{ color: darkMode ? '#52c41a' : '#52c41a' }} />
+          <span style={{ fontWeight: 500, color: darkMode ? '#fff' : '#000' }}>
             Claude Code
           </span>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: isAuthenticated === null 
-              ? '#faad14' 
-              : isAuthenticated 
-                ? '#52c41a' 
-                : '#ff4d4f',
-            marginLeft: '8px'
-          }} />
           <span style={{ 
-            color: darkMode ? '#999' : '#666', 
-            fontSize: '12px' 
+            color: isStreaming 
+              ? (darkMode ? '#52c41a' : '#389e0d')  // 深色主題用較亮綠色，淺色主題用較深綠色
+              : (darkMode ? '#999' : '#666'), 
+            fontSize: '12px'
           }}>
-            {isAuthenticated === null 
-              ? '檢查中...' 
-              : isAuthenticated 
-                ? '已連接' 
-                : '未認證'
-            }
+            {isStreaming ? t('chat.status.processing') : t('chat.status.ready')}
           </span>
         </Space>
       </div>
 
       {/* Messages Area */}
       <div style={messagesStyle}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {messages.map((message) => (
-            <div key={message.id} style={{
-              display: 'flex',
-              justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
-              alignItems: 'flex-start',
-              gap: '8px'
-            }}>
-              {message.role !== 'user' && (
-                <Avatar 
-                  icon={<RobotOutlined />} 
-                  size={32}
-                  style={{ 
-                    backgroundColor: darkMode ? '#52c41a' : '#52c41a',
-                    flexShrink: 0
-                  }}
-                />
-              )}
-              
-              <div style={{
-                maxWidth: '70%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: message.role === 'user' ? 'flex-end' : 'flex-start'
-              }}>
-                {/* 訊息標題 */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '4px',
-                  flexDirection: message.role === 'user' ? 'row-reverse' : 'row'
-                }}>
-                  <span style={{ 
-                    color: darkMode ? '#999' : '#666', 
-                    fontSize: '12px',
-                    fontWeight: 500
-                  }}>
-                    {message.role === 'user' ? '您' : 'Claude'}
-                  </span>
-                  <span style={{ 
-                    color: darkMode ? '#666' : '#999', 
-                    fontSize: '11px' 
-                  }}>
-                    {message.timestamp.toLocaleTimeString()}
-                  </span>
-                  {message.status === 'sending' && <Spin size="small" />}
-                </div>
-
-                {/* 訊息氣泡 */}
-                <div style={{
-                  padding: '12px 16px',
-                  borderRadius: '18px',
-                  backgroundColor: message.role === 'user'
-                    ? (darkMode ? '#1890ff' : '#1890ff')
-                    : (darkMode ? '#262626' : '#f5f5f5'),
-                  color: message.role === 'user'
-                    ? '#fff'
-                    : (darkMode ? '#e6e6e6' : '#000'),
-                  wordBreak: 'break-word',
-                  whiteSpace: 'pre-wrap',
-                  position: 'relative',
-                  boxShadow: darkMode 
-                    ? '0 1px 3px rgba(0,0,0,0.3)' 
-                    : '0 1px 3px rgba(0,0,0,0.1)'
-                }}>
-                  {message.content}
-                  
-                  {/* 訊息狀態指示器 */}
-                  {message.role === 'user' && message.status === 'error' && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '-6px',
-                      right: '8px',
-                      fontSize: '10px',
-                      color: '#ff4d4f'
-                    }}>
-                      ⚠
-                    </div>
-                  )}
-                </div>
-
-                {/* 附件顯示 */}
-                {message.attachments && message.attachments.length > 0 && (
-                  <div style={{ 
-                    marginTop: '6px',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '4px',
-                    justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start'
-                  }}>
-                    {message.attachments.map(att => (
-                      <div key={att.id} style={{ 
-                        color: darkMode ? '#999' : '#666',
-                        fontSize: '11px',
-                        padding: '2px 6px',
-                        backgroundColor: darkMode ? '#1f1f1f' : '#fafafa',
-                        borderRadius: '10px',
-                        border: darkMode ? '1px solid #303030' : '1px solid #e8e8e8'
-                      }}>
-                        📎 {att.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {message.role === 'user' && (
-                <Avatar 
-                  icon={<UserOutlined />} 
-                  size={32}
-                  style={{ 
-                    backgroundColor: darkMode ? '#1890ff' : '#1890ff',
-                    flexShrink: 0
-                  }}
-                />
-              )}
-            </div>
+            <MessageBubble
+              key={message.id}
+              message={message}
+              toolActivities={toolActivities.get(message.id)}
+              darkMode={darkMode}
+            />
           ))}
+
+          {/* 顯示 AI 思考動畫 */}
+          {isThinking && (
+            <MessageBubble
+              message={{
+                id: 'thinking',
+                role: 'assistant',
+                content: '...',
+                timestamp: new Date(),
+                status: 'sending'
+              }}
+              darkMode={darkMode}
+              isStreaming={true}
+            />
+          )}
+
+          {/* 顯示正在串流的助理訊息 */}
+          {isStreaming && currentAssistantMessage && !isThinking && (
+            <MessageBubble
+              message={{
+                id: currentAssistantMessageId,
+                role: 'assistant',
+                content: currentAssistantMessage,
+                timestamp: new Date(),
+                status: 'sending'
+              }}
+              toolActivities={toolActivities.get(currentAssistantMessageId)}
+              darkMode={darkMode}
+              isStreaming={true}
+            />
+          )}
         </div>
         <div ref={messagesEndRef} />
       </div>
@@ -356,7 +472,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="輸入訊息... (Enter 發送, Shift+Enter 換行)"
+            placeholder={t('chat.input.placeholder')}
             autoSize={{ minRows: 1, maxRows: 4 }}
             style={{ 
               flex: 1,
@@ -375,8 +491,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
               icon={<PaperClipOutlined />} 
               disabled={isLoading}
               style={{
+                backgroundColor: darkMode ? '#262626' : '#f5f5f5',
                 borderColor: darkMode ? '#303030' : '#d9d9d9',
-                backgroundColor: darkMode ? '#1f1f1f' : '#fff',
                 color: darkMode ? '#fff' : '#000'
               }}
             />
@@ -386,10 +502,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
             icon={<SendOutlined />} 
             onClick={handleSendMessage}
             loading={isLoading}
-            disabled={!inputValue.trim() && attachments.length === 0}
+            disabled={(!inputValue.trim() && attachments.length === 0) || isLoading}
           />
         </Space.Compact>
       </div>
-    </Card>
+    </div>
   );
 };
+
+export default ChatPanel;

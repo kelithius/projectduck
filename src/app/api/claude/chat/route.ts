@@ -1,16 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { writeFile, unlink, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { v4 as uuidv4 } from 'uuid';
-
-const execAsync = promisify(exec);
+import { NextRequest } from 'next/server';
+import { claudeSDKService } from '@/lib/services/claude/claudeSDKService';
+import type { SDKMessage } from '@anthropic-ai/claude-code';
 
 export async function POST(request: NextRequest) {
-  let tempFiles: string[] = [];
-  
   try {
     const formData = await request.formData();
     const message = formData.get('message') as string;
@@ -18,110 +10,172 @@ export async function POST(request: NextRequest) {
     const attachmentCount = parseInt(formData.get('attachmentCount') as string || '0');
 
     if (!message?.trim()) {
-      return NextResponse.json({
-        success: false,
-        error: 'Message is required'
-      }, { status: 400 });
+      return new Response(
+        JSON.stringify({ success: false, error: 'Message is required' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    // 準備 Claude CLI 命令
-    let claudeCommand = 'claude';
-    let promptText = message;
-
-    // 如果有專案路徑，切換到該目錄
-    if (projectPath) {
-      claudeCommand = `cd "${projectPath}" && claude`;
+    if (!projectPath?.trim()) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Project path is required' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // 處理附件
-    const attachmentPaths: string[] = [];
-    if (attachmentCount > 0) {
-      const tempDir = join(tmpdir(), 'claude-chat-' + uuidv4());
-      await mkdir(tempDir, { recursive: true });
+    const attachments: File[] = [];
+    for (let i = 0; i < attachmentCount; i++) {
+      const file = formData.get(`attachment_${i}`) as File;
+      if (file) {
+        attachments.push(file);
+      }
+    }
 
-      for (let i = 0; i < attachmentCount; i++) {
-        const file = formData.get(`attachment_${i}`) as File;
-        if (file) {
-          const buffer = await file.arrayBuffer();
-          const tempPath = join(tempDir, file.name);
-          await writeFile(tempPath, Buffer.from(buffer));
-          attachmentPaths.push(tempPath);
-          tempFiles.push(tempPath);
+    // 建立 Server-Sent Events 串流
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        
+        const sendEvent = (eventType: string, data: any) => {
+          const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+          controller.enqueue(encoder.encode(message));
+        };
+
+        try {
+          // 發送開始事件
+          sendEvent('start', { 
+            message: 'Starting Claude Code query...',
+            projectPath,
+            attachmentCount: attachments.length
+          });
+
+          // 啟動查詢
+          const queryResult = await claudeSDKService.startQuery({
+            prompt: message,
+            projectPath,
+            attachments,
+            permissionMode: 'default',
+            allowedTools: ['Read', 'Write', 'Edit', 'Bash'],
+            maxTurns: 50
+          });
+
+          if (!queryResult.success) {
+            sendEvent('error', { 
+              error: queryResult.error || 'Failed to start query'
+            });
+            controller.close();
+            return;
+          }
+
+          // 處理串流回應
+          try {
+            for await (const sdkMessage of claudeSDKService.processQuery(queryResult.sessionId)) {
+              sendEvent('message', {
+                type: sdkMessage.type,
+                data: sdkMessage
+              });
+            }
+
+            // 發送完成事件
+            sendEvent('complete', { 
+              message: 'Query completed successfully',
+              sessionId: queryResult.sessionId
+            });
+
+          } catch (queryError) {
+            console.error('Query processing error:', queryError);
+            sendEvent('error', { 
+              error: queryError instanceof Error ? queryError.message : 'Query processing failed'
+            });
+          }
+
+        } catch (error) {
+          console.error('Stream error:', error);
+          sendEvent('error', { 
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+          });
+        } finally {
+          controller.close();
         }
+      },
+
+      cancel() {
+        console.log('Stream cancelled');
+        // 嘗試中斷查詢
+        claudeSDKService.interruptQuery(projectPath);
       }
+    });
 
-      // 如果有附件，將路徑添加到提示中
-      if (attachmentPaths.length > 0) {
-        promptText = `${message}\n\nAttached files: ${attachmentPaths.join(', ')}`;
-      }
-    }
-
-    // 目前先返回模擬回應，因為實際整合 Claude CLI 需要更複雜的設定
-    // TODO: 實際整合 Claude Code CLI
-    const simulatedResponse = `收到您的訊息：${message}
-
-這是一個模擬的 Claude Code 回應。實際整合需要：
-1. 正確設定 Claude CLI 認證
-2. 處理命令執行和回應串流
-3. 管理工作目錄和專案上下文
-
-${attachmentPaths.length > 0 ? `附件 (${attachmentPaths.length} 個檔案): ${attachmentPaths.map(p => p.split('/').pop()).join(', ')}` : ''}
-
-目前工作目錄: ${projectPath || '未設定'}`;
-
-    // 清理臨時檔案
-    for (const tempFile of tempFiles) {
-      try {
-        await unlink(tempFile);
-      } catch (error) {
-        console.warn('Failed to clean up temp file:', tempFile, error);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        message: simulatedResponse,
-        projectPath: projectPath || null,
-        attachmentCount: attachmentPaths.length
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'X-Accel-Buffering': 'no'
       }
     });
 
   } catch (error) {
-    // 清理臨時檔案
-    for (const tempFile of tempFiles) {
-      try {
-        await unlink(tempFile);
-      } catch (cleanupError) {
-        console.warn('Failed to clean up temp file:', tempFile, cleanupError);
-      }
-    }
-
     console.error('Chat API error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
-    }, { status: 500 });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 }
 
-// 未來可以實作串流回應的版本
-async function executeClaudeCommand(command: string, projectPath?: string): Promise<string> {
+// 新增中斷查詢的 API 端點
+export async function DELETE(request: NextRequest) {
   try {
-    const options = projectPath ? { cwd: projectPath } : {};
-    const { stdout, stderr } = await execAsync(command, {
-      ...options,
-      timeout: 30000, // 30 秒超時
-      maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-    });
+    const { searchParams } = new URL(request.url);
+    const projectPath = searchParams.get('projectPath');
 
-    if (stderr) {
-      console.warn('Claude CLI stderr:', stderr);
+    if (!projectPath) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Project path is required' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    return stdout;
+    const success = await claudeSDKService.interruptQuery(projectPath);
+    
+    return new Response(
+      JSON.stringify({ 
+        success,
+        message: success ? 'Query interrupted successfully' : 'No active query to interrupt'
+      }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
-    console.error('Claude CLI execution error:', error);
-    throw new Error('Failed to execute Claude command');
+    console.error('Interrupt API error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to interrupt query'
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 }

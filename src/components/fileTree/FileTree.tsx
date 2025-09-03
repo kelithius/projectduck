@@ -12,10 +12,11 @@ interface ExtendedTreeDataNode extends DataNode {
 
 type TreeDataNode = ExtendedTreeDataNode;
 import { useTranslation } from 'react-i18next';
-import { FileItem } from '@/lib/types';
+import { FileItem, DirectoryWatchEvent, TreeNodeOperationData } from '@/lib/types';
 import apiService from '@/lib/services/api';
 import { useProject } from '@/lib/providers/project-provider';
 import { FileIcon } from './FileIcon';
+import directoryWatcher from '@/lib/services/directoryWatcher';
 import styles from './FileTree.module.css';
 
 
@@ -36,7 +37,9 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
   const [autoExpandParent, setAutoExpandParent] = useState(true);
   const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
+  const [isWatchingDirectory, setIsWatchingDirectory] = useState(false);
   const searchInputRef = useRef<InputRef>(null);
+  const watchCleanupRef = useRef<(() => void) | null>(null);
 
   const fileItemToTreeNode = (item: FileItem): TreeDataNode => {
     return {
@@ -150,16 +153,30 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     );
   };
 
+  // 停止監控目錄
+  const stopDirectoryWatch = useCallback(() => {
+    if (watchCleanupRef.current) {
+      console.log('[FileTree] Stopping directory watch');
+      watchCleanupRef.current();
+      watchCleanupRef.current = null;
+    }
+    setIsWatchingDirectory(false);
+  }, []);
+
   const resetFileTree = useCallback(() => {
+    // 停止目錄監控
+    stopDirectoryWatch();
+    
     setTreeData([]);
     setExpandedKeys([]);
     setSearchValue('');
     setAutoExpandParent(true);
     setLoadingNodes(new Set());
     setOperationInProgress(null);
+    
     // 重置時清除選中的檔案
     onFileSelect(null);
-  }, [onFileSelect]);
+  }, [onFileSelect, stopDirectoryWatch]);
 
   const loadRootDirectory = useCallback(async () => {
     try {
@@ -290,6 +307,262 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     setAutoExpandParent(false);
   }, []);
 
+  // 智慧更新樹節點 - 保持展開狀態
+  const smartUpdateTreeNode = useCallback((operation: TreeNodeOperationData) => {
+    const { operation: op, parentKey, nodeKey, nodeData, newParentKey, newNodeKey } = operation;
+    
+    console.log(`[FileTree] Smart update: ${op} for ${nodeKey}`, operation);
+    
+    setTreeData(prevData => {
+      switch (op) {
+        case 'add':
+          if (!nodeData) return prevData;
+          return addNodeToTree(prevData, parentKey, nodeData);
+          
+        case 'remove':
+          return removeNodeFromTree(prevData, nodeKey);
+          
+        case 'update':
+          if (!nodeData) return prevData;
+          return updateNodeInTree(prevData, nodeKey, nodeData);
+          
+        case 'move':
+          if (!newParentKey) return prevData;
+          return moveNodeInTree(prevData, nodeKey, parentKey, newParentKey, newNodeKey);
+          
+        default:
+          return prevData;
+      }
+    });
+  }, []);
+
+  // 添加節點到樹中
+  const addNodeToTree = (nodes: TreeDataNode[], parentKey: string, nodeData: FileItem): TreeDataNode[] => {
+    if (parentKey === '') {
+      // 添加到根級
+      const newNode = fileItemToTreeNode(nodeData);
+      return [...nodes, newNode].sort((a, b) => {
+        // 資料夾在前，檔案在後，同類型按字母順序
+        const aIsDir = a.data?.type === 'directory';
+        const bIsDir = b.data?.type === 'directory';
+        if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
+        return (a.data?.name || '').localeCompare(b.data?.name || '');
+      });
+    }
+    
+    return nodes.map(node => {
+      if (node.key === parentKey) {
+        const newNode = fileItemToTreeNode(nodeData);
+        const updatedChildren = [...(node.children || []), newNode].sort((a, b) => {
+          const aIsDir = a.data?.type === 'directory';
+          const bIsDir = b.data?.type === 'directory';
+          if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
+          return (a.data?.name || '').localeCompare(b.data?.name || '');
+        });
+        return { ...node, children: updatedChildren };
+      }
+      
+      if (node.children) {
+        return { ...node, children: addNodeToTree(node.children, parentKey, nodeData) };
+      }
+      
+      return node;
+    });
+  };
+
+  // 從樹中移除節點
+  const removeNodeFromTree = (nodes: TreeDataNode[], nodeKey: string): TreeDataNode[] => {
+    return nodes.filter(node => {
+      if (node.key === nodeKey) {
+        return false; // 移除此節點
+      }
+      
+      if (node.children) {
+        node.children = removeNodeFromTree(node.children, nodeKey);
+      }
+      
+      return true;
+    });
+  };
+
+  // 更新樹中的節點
+  const updateNodeInTree = (nodes: TreeDataNode[], nodeKey: string, nodeData: FileItem): TreeDataNode[] => {
+    return nodes.map(node => {
+      if (node.key === nodeKey) {
+        // 更新節點數據，但保持其他屬性
+        return {
+          ...node,
+          title: nodeData.name,
+          data: nodeData
+        };
+      }
+      
+      if (node.children) {
+        return { ...node, children: updateNodeInTree(node.children, nodeKey, nodeData) };
+      }
+      
+      return node;
+    });
+  };
+
+  // 移動樹中的節點
+  const moveNodeInTree = (
+    nodes: TreeDataNode[], 
+    nodeKey: string, 
+    oldParentKey: string, 
+    newParentKey: string, 
+    newNodeKey?: string
+  ): TreeDataNode[] => {
+    // 先找到要移動的節點
+    let nodeToMove: TreeDataNode | null = null;
+    
+    const findAndRemoveNode = (currentNodes: TreeDataNode[]): TreeDataNode[] => {
+      return currentNodes.filter(node => {
+        if (node.key === nodeKey) {
+          nodeToMove = node;
+          return false;
+        }
+        
+        if (node.children) {
+          node.children = findAndRemoveNode(node.children);
+        }
+        
+        return true;
+      });
+    };
+    
+    let updatedNodes = findAndRemoveNode([...nodes]);
+    
+    // 如果找到了節點，將其添加到新位置
+    if (nodeToMove && nodeToMove.data) {
+      // 更新節點的 key（如果有重新命名）
+      if (newNodeKey) {
+        nodeToMove = {
+          ...nodeToMove,
+          key: newNodeKey,
+          title: nodeToMove.data.name
+        };
+      }
+      
+      updatedNodes = addNodeToTree(updatedNodes, newParentKey, nodeToMove.data);
+    }
+    
+    return updatedNodes;
+  };
+
+  // 處理目錄變動事件
+  const handleDirectoryWatchEvent = useCallback((event: DirectoryWatchEvent) => {
+    const { type, relativePath, stats } = event;
+    
+    if (!relativePath || relativePath === '') return;
+    
+    console.log(`[FileTree] Directory event: ${type} for ${relativePath}`, event);
+    
+    // 清除相關的 API 快取
+    if (relativePath) {
+      const cacheKey = getCurrentBasePath() ? `directory:${getCurrentBasePath()}:${relativePath}` : `directory:${relativePath}`;
+      // 假設有快取清除功能
+      // cacheService.remove(cacheKey);
+    }
+    
+    const parentPath = relativePath.includes('/') ? relativePath.substring(0, relativePath.lastIndexOf('/')) : '';
+    const fileName = relativePath.includes('/') ? relativePath.substring(relativePath.lastIndexOf('/') + 1) : relativePath;
+    
+    try {
+      const basePath = getCurrentBasePath();
+      const fullPath = basePath ? `${basePath}/${relativePath}` : relativePath;
+      
+      switch (type) {
+        case 'add':
+        case 'addDir':
+          if (stats) {
+            const newFileItem: FileItem = {
+              name: fileName,
+              path: relativePath,
+              type: stats.isDirectory ? 'directory' : 'file',
+              size: stats.size,
+              modified: stats.modified || new Date().toISOString(),
+              extension: stats.isFile && fileName.includes('.') ? fileName.split('.').pop() : undefined,
+              children: stats.isDirectory ? [] : undefined
+            };
+            
+            smartUpdateTreeNode({
+              operation: 'add',
+              parentKey: parentPath,
+              nodeKey: relativePath,
+              nodeData: newFileItem
+            });
+          }
+          break;
+          
+        case 'unlink':
+        case 'unlinkDir':
+          smartUpdateTreeNode({
+            operation: 'remove',
+            parentKey: parentPath,
+            nodeKey: relativePath
+          });
+          break;
+          
+        case 'change':
+          // 檔案內容變更，更新修改時間
+          if (stats) {
+            const updatedFileItem: FileItem = {
+              name: fileName,
+              path: relativePath,
+              type: 'file',
+              size: stats.size,
+              modified: stats.modified || new Date().toISOString(),
+              extension: fileName.includes('.') ? fileName.split('.').pop() : undefined
+            };
+            
+            smartUpdateTreeNode({
+              operation: 'update',
+              parentKey: parentPath,
+              nodeKey: relativePath,
+              nodeData: updatedFileItem
+            });
+          }
+          break;
+          
+        case 'error':
+          console.error(`[FileTree] Directory watch error:`, event.error);
+          message.error(`檔案監控錯誤: ${event.error}`);
+          break;
+      }
+    } catch (error) {
+      console.error(`[FileTree] Error handling directory event:`, error);
+    }
+  }, [getCurrentBasePath, message, smartUpdateTreeNode]);
+
+  // 開始監控目錄
+  const startDirectoryWatch = useCallback(() => {
+    if (isWatchingDirectory || !currentProject) return;
+    
+    try {
+      const basePath = getCurrentBasePath();
+      if (!basePath) {
+        console.warn('[FileTree] Cannot start directory watch: no basePath');
+        return;
+      }
+      
+      console.log('[FileTree] Starting directory watch for:', basePath);
+      
+      const cleanup = directoryWatcher.watchDirectory({
+        basePath,
+        targetPath: '', // 監控根目錄
+        recursive: true,
+        callback: handleDirectoryWatchEvent
+      });
+      
+      watchCleanupRef.current = cleanup;
+      setIsWatchingDirectory(true);
+      
+    } catch (error) {
+      console.error('[FileTree] Failed to start directory watch:', error);
+    }
+  }, [isWatchingDirectory, currentProject, getCurrentBasePath, handleDirectoryWatchEvent]);
+
   useEffect(() => {
     let isCancelled = false;
     
@@ -298,17 +571,25 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
       if (projectLoading) {
         // 專案還在載入中，確保顯示載入狀態
         setLoading(true);
-          return;
+        return;
       }
       
       // 專案載入完成後的處理
       if (!isCancelled && currentProject) {
         // 有可用專案，載入目錄
         await loadRootDirectory();
+        
+        // 載入完成後開始監控目錄
+        if (!isCancelled) {
+          startDirectoryWatch();
+        }
       } else if (!isCancelled && !currentProject) {
         // 專案載入完成但沒有可用專案時顯示錯誤
         setLoading(false);
         message.error(t('fileTree.noProject', '沒有可用的專案'));
+        
+        // 停止任何現有的目錄監控
+        stopDirectoryWatch();
       }
     };
     
@@ -317,7 +598,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     return () => {
       isCancelled = true;
     };
-  }, [projectLoading, currentProject]);
+  }, [projectLoading, currentProject, startDirectoryWatch, stopDirectoryWatch]);
 
   // 監聽 resetTrigger 變化
   useEffect(() => {
@@ -342,6 +623,13 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
       window.removeEventListener('projectChange', handleProjectChange);
     };
   }, [resetFileTree]);
+
+  // 組件卸載時清理監控器
+  useEffect(() => {
+    return () => {
+      stopDirectoryWatch();
+    };
+  }, [stopDirectoryWatch]);
 
   if (loading) {
     return (

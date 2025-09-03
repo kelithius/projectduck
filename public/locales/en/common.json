@@ -22,7 +22,11 @@
     "fileType": "File Type",
     "imageAlt": "Image Preview",
     "videoError": "Your browser does not support video playback",
-    "unsupportedFile": "Unsupported file format"
+    "unsupportedFile": "Unsupported file format",
+    "fileChanged": "File has been modified",
+    "fileDeleted": "File has been deleted",
+    "fileMoved": "File has been moved",
+    "watchError": "File watch error"
   },
   "markdown": {
     "tocTitle": "Table of Contents"
@@ -60,5 +64,38 @@
     "back": "Back",
     "download": "Download",
     "fullscreen": "Fullscreen"
+  },
+  "common": {
+    "reload": "Reload",
+    "dismiss": "Dismiss",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete"
+  },
+  "chat": {
+    "title": "Claude Code",
+    "status": {
+      "ready": "Ready",
+      "processing": "Processing...",
+      "checking": "Checking authentication status...",
+      "typing": "Typing"
+    },
+    "auth": {
+      "required": "Claude Code authentication required",
+      "error": "Please complete Claude Code authentication first",
+      "instruction": "Please run the following command in terminal to authenticate:"
+    },
+    "input": {
+      "placeholder": "Type a message... (Enter to send, Shift+Enter for new line)",
+      "attachment": "Attachment"
+    },
+    "error": {
+      "send": "Send failed, please try again",
+      "query": "Query error: ",
+      "unknown": "Unknown error",
+      "execution": "Execution failed: ",
+      "project": "No project path available"
+    }
   }
 }

@@ -1,62 +1,80 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { NextRequest } from 'next/server';
+import { claudeSDKService } from '@/lib/services/claude/claudeSDKService';
 
 export async function GET() {
   try {
-    // 檢查 claude CLI 是否已安裝並認證
-    const { stdout, stderr } = await execAsync('claude --version');
+    const availability = await claudeSDKService.checkClaudeAvailability();
     
-    if (stderr && stderr.includes('not found')) {
-      return NextResponse.json({
-        authenticated: false,
-        error: 'Claude CLI not installed'
-      });
-    }
+    return new Response(
+      JSON.stringify({
+        authenticated: availability.available,
+        error: availability.error,
+        supportedTools: claudeSDKService.getSupportedTools(),
+        supportedPermissionModes: claudeSDKService.getSupportedPermissionModes(),
+        stats: claudeSDKService.getStats()
+      }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
 
-    // 嘗試執行一個簡單的 claude 命令來檢查認證狀態
-    try {
-      await execAsync('claude --help', { timeout: 5000 });
-      return NextResponse.json({
-        authenticated: true,
-        version: stdout.trim()
-      });
-    } catch (error) {
-      return NextResponse.json({
-        authenticated: false,
-        error: 'Authentication required'
-      });
-    }
   } catch (error) {
     console.error('Auth check error:', error);
-    return NextResponse.json({
-      authenticated: false,
-      error: 'Failed to check authentication'
-    });
+    return new Response(
+      JSON.stringify({
+        authenticated: false,
+        error: error instanceof Error ? error.message : 'Failed to check authentication'
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 }
 
 export async function POST() {
   try {
-    // 注意：實際上 claude login 需要互動式終端
-    // 這裡我們返回指引訊息，讓使用者手動執行
-    return NextResponse.json({
-      success: false,
-      error: 'Please run "claude login" in your terminal to authenticate',
-      instructions: [
-        '1. Open your terminal',
-        '2. Run: claude login',
-        '3. Follow the authentication process',
-        '4. Refresh this page'
-      ]
-    });
+    // Claude Code SDK 會自動處理認證，這裡主要是重新檢查狀態
+    const availability = await claudeSDKService.checkClaudeAvailability();
+    
+    if (availability.available) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Claude Code is available and ready to use'
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Claude Code authentication required',
+          instructions: [
+            '1. Open your terminal',
+            '2. Run: claude login',
+            '3. Follow the authentication process',
+            '4. Refresh this page',
+            '5. Alternative: Set up API key in Claude Code settings'
+          ]
+        }),
+        { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
   } catch (error) {
-    console.error('Auth error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Authentication failed'
-    });
+    console.error('Auth POST error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Authentication check failed'
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 }

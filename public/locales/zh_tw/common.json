@@ -22,7 +22,11 @@
     "fileType": "檔案類型",
     "imageAlt": "圖片預覽",
     "videoError": "您的瀏覽器不支援影片播放",
-    "unsupportedFile": "不支援的檔案格式"
+    "unsupportedFile": "不支援的檔案格式",
+    "fileChanged": "檔案已變更",
+    "fileDeleted": "檔案已被刪除",
+    "fileMoved": "檔案已被移動",
+    "watchError": "監控錯誤"
   },
   "markdown": {
     "tocTitle": "目錄"
@@ -60,5 +64,38 @@
     "back": "返回",
     "download": "下載",
     "fullscreen": "全螢幕"
+  },
+  "common": {
+    "reload": "重新載入",
+    "dismiss": "忽略",
+    "cancel": "取消",
+    "confirm": "確認",
+    "save": "儲存",
+    "delete": "刪除"
+  },
+  "chat": {
+    "title": "Claude Code",
+    "status": {
+      "ready": "準備就緒",
+      "processing": "正在處理中...",
+      "checking": "檢查認證狀態...",
+      "typing": "正在輸入"
+    },
+    "auth": {
+      "required": "需要完成 Claude Code 認證",
+      "error": "請先完成 Claude Code 認證",
+      "instruction": "請先在終端機執行以下命令完成認證："
+    },
+    "input": {
+      "placeholder": "輸入訊息... (Enter 發送, Shift+Enter 換行)",
+      "attachment": "附件"
+    },
+    "error": {
+      "send": "發送失敗，請重試",
+      "query": "查詢發生錯誤：",
+      "unknown": "未知錯誤",
+      "execution": "執行失敗:",
+      "project": "沒有可用的專案路徑"
+    }
   }
 }

@@ -10,6 +10,12 @@ export interface ClaudeCodeResponse {
   error?: string;
 }
 
+// 事件類型定義
+export interface StreamEvent {
+  type: 'start' | 'message' | 'complete' | 'error';
+  data: any;
+}
+
 class ClaudeCodeService {
   private authenticated: boolean = false;
   private currentProject: string | null = null;
@@ -110,26 +116,18 @@ class ClaudeCodeService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // 檢查是否為串流回應
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('text/stream')) {
-        return {
-          success: true,
-          data: {
-            stream: response.body || undefined
-          }
-        };
-      } else {
-        const result = await response.json();
-        return {
-          success: result.success || false,
-          data: result.data,
-          error: result.error
-        };
-      }
+      // 新的 API 會回傳 Server-Sent Events
+      return {
+        success: true,
+        data: {
+          stream: response.body || undefined
+        }
+      };
+
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         return {
@@ -143,6 +141,108 @@ class ClaudeCodeService {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  }
+
+  // 新增 SSE 事件流處理方法
+  async sendMessageWithSSE(
+    options: SendMessageOptions,
+    onEvent: (event: StreamEvent) => void
+  ): Promise<void> {
+    const { content, attachments, projectPath } = options;
+
+    try {
+      // 準備請求資料
+      const formData = new FormData();
+      formData.append('message', content);
+      
+      if (projectPath) {
+        formData.append('projectPath', projectPath);
+      }
+
+      // 處理附件
+      if (attachments && attachments.length > 0) {
+        attachments.forEach((file, index) => {
+          formData.append(`attachment_${index}`, file);
+        });
+        formData.append('attachmentCount', attachments.length.toString());
+      }
+
+      // 建立新的 AbortController
+      this.abortController = new AbortController();
+
+      const response = await fetch('/api/claude/chat', {
+        method: 'POST',
+        body: formData,
+        signal: this.abortController.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      // 處理 Server-Sent Events
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body available');
+      }
+
+      try {
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          // 處理完整的事件
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // 保留不完整的行
+
+          let currentEvent: { type?: string; data?: string } = {};
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent.type = line.substring(7);
+            } else if (line.startsWith('data: ')) {
+              currentEvent.data = line.substring(6);
+            } else if (line === '' && currentEvent.type && currentEvent.data) {
+              // 完整事件，處理它
+              try {
+                const eventData = JSON.parse(currentEvent.data);
+                onEvent({
+                  type: currentEvent.type as StreamEvent['type'],
+                  data: eventData
+                });
+              } catch (parseError) {
+                console.warn('Failed to parse event data:', parseError);
+              }
+              currentEvent = {};
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        onEvent({
+          type: 'error',
+          data: { error: 'Request was cancelled' }
+        });
+      } else {
+        console.error('SSE stream error:', error);
+        onEvent({
+          type: 'error',
+          data: { error: error instanceof Error ? error.message : 'Unknown error' }
+        });
+      }
     }
   }
 

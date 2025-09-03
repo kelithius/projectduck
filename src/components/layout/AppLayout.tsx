@@ -65,6 +65,26 @@ const AppLayoutInner: React.FC = () => {
 
   const handleFileSelect = (file: FileItem | null) => {
     setSelectedFile(file);
+    
+    // 通知 Claude Code 當前選擇的檔案
+    if (file && typeof window !== 'undefined') {
+      try {
+        // 使用 postMessage 向 Claude Code 通知檔案選擇
+        window.parent?.postMessage({
+          type: 'fileSelected',
+          file: {
+            name: file.name,
+            path: file.path,
+            type: file.type,
+            extension: file.extension
+          }
+        }, '*');
+        
+        console.log('[AppLayout] Notified Claude Code of file selection:', file.path);
+      } catch (error) {
+        console.log('[AppLayout] Failed to notify Claude Code:', error);
+      }
+    }
   };
 
   const toggleProjectSidebar = () => {
@@ -211,50 +231,75 @@ const AppLayoutInner: React.FC = () => {
       </Header>
       
       <Content style={contentStyle}>
-        <Allotment defaultSizes={chatPanelVisible ? [250, 450, 350] : [300, 700]}>
-          {/* Left Pane: File Tree */}
-          <Allotment.Pane minSize={200} maxSize={600}>
-            <div style={sidebarStyle}>
-              <FileTree onFileSelect={handleFileSelect} darkMode={isDark} />
-            </div>
-          </Allotment.Pane>
+        <div style={{ display: 'flex', height: '100%' }}>
+          {/* Left Pane: File Tree - Fixed Width */}
+          <div style={{ 
+            width: '260px', 
+            minWidth: '260px', 
+            maxWidth: '260px',
+            ...sidebarStyle,
+            borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`
+          }}>
+            <FileTree onFileSelect={handleFileSelect} darkMode={isDark} />
+          </div>
           
-          {/* Middle Pane: Content Viewer */}
-          <Allotment.Pane minSize={300}>
-            <div style={{ height: '100%' }}>
-              <Suspense fallback={
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  height: '100%' 
-                }}>
-                  <Spin size="large" />
-                </div>
-              }>
-                <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
-              </Suspense>
-            </div>
-          </Allotment.Pane>
+          {/* Middle and Right Panes: Resizable Content */}
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            {chatPanelVisible ? (
+              <Allotment>
+                {/* Middle Pane: Content Viewer */}
+                <Allotment.Pane minSize={300}>
+                  <div style={{ height: '100%' }}>
+                    <Suspense fallback={
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        height: '100%' 
+                      }}>
+                        <Spin size="large" />
+                      </div>
+                    }>
+                      <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
+                    </Suspense>
+                  </div>
+                </Allotment.Pane>
 
-          {/* Right Pane: Chat Panel (only when visible) */}
-          {chatPanelVisible && (
-            <Allotment.Pane minSize={300} maxSize={500}>
-              <Suspense fallback={
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  height: '100%' 
-                }}>
-                  <Spin size="large" />
-                </div>
-              }>
-                <ChatPanel darkMode={isDark} />
-              </Suspense>
-            </Allotment.Pane>
-          )}
-        </Allotment>
+                {/* Right Pane: Chat Panel */}
+                <Allotment.Pane size={350} minSize={300} maxSize={500}>
+                  <Suspense fallback={
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      height: '100%' 
+                    }}>
+                      <Spin size="large" />
+                    </div>
+                  }>
+                    <ChatPanel darkMode={isDark} />
+                  </Suspense>
+                </Allotment.Pane>
+              </Allotment>
+            ) : (
+              /* Only Content Viewer when chat panel is closed */
+              <div style={{ height: '100%', flex: 1 }}>
+                <Suspense fallback={
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    height: '100%' 
+                  }}>
+                    <Spin size="large" />
+                  </div>
+                }>
+                  <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
+                </Suspense>
+              </div>
+            )}
+          </div>
+        </div>
       </Content>
       
       <ProjectSidebar
