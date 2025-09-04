@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Layout, Typography, Spin, Switch, Space, App, Button } from 'antd';
-import { BulbOutlined, MoonOutlined, MessageOutlined } from '@ant-design/icons';
+import { Layout, Typography, Spin, Space, App, Button } from 'antd';
+import { BulbOutlined, MoonOutlined, MessageOutlined, SunOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
@@ -189,7 +189,7 @@ const AppLayoutInner: React.FC = () => {
             style={{ 
               margin: 0, 
               lineHeight: '32px',
-              color: isDark ? '#fff' : '#1890ff' 
+              color: isDark ? '#fff' : '#1890ff'
             }}
           >
             {t('title')}
@@ -208,24 +208,17 @@ const AppLayoutInner: React.FC = () => {
             }}
             aria-label="Toggle chat panel"
           />
-          <BulbOutlined 
-            style={{ 
-              color: isDark ? '#595959' : '#1890ff',
-              fontSize: '16px'
-            }} 
-          />
-          <Switch
-            checked={isDark}
-            onChange={toggleTheme}
+          <Button
+            type="text"
+            icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+            onClick={toggleTheme}
             style={{
-              backgroundColor: isDark ? '#1890ff' : undefined
+              color: isDark ? '#fadb14' : '#1890ff',
+              fontSize: '16px',
+              border: 'none',
+              boxShadow: 'none'
             }}
-          />
-          <MoonOutlined 
-            style={{ 
-              color: isDark ? '#1890ff' : '#595959',
-              fontSize: '16px'
-            }} 
+            aria-label={isDark ? t('theme.switchToLight') : t('theme.switchToDark')}
           />
         </Space>
       </Header>
@@ -240,7 +233,7 @@ const AppLayoutInner: React.FC = () => {
             ...sidebarStyle,
             borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`
           }}>
-            <FileTree onFileSelect={handleFileSelect} darkMode={isDark} />
+            <FileTree onFileSelect={handleFileSelect} selectedFile={selectedFile} darkMode={isDark} />
           </div>
           
           {/* Middle and Right Panes: Resizable Content */}

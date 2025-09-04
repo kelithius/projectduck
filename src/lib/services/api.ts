@@ -42,18 +42,29 @@ class ApiService {
     return result;
   }
 
-  async getFileContent(path: string, basePath?: string): Promise<FileContentResponse> {
+  async getFileContent(path: string, basePath?: string, forceRefresh?: boolean): Promise<FileContentResponse> {
     const cacheKey = basePath ? `file-content:${basePath}:${path}` : `file-content:${path}`;
-    const cached = cacheService.get<FileContentResponse>(cacheKey);
     
-    if (cached) {
-      return cached;
+    // 如果不是強制刷新，檢查快取
+    if (!forceRefresh) {
+      const cached = cacheService.get<FileContentResponse>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    } else {
+      // 強制刷新時清除舊快取
+      cacheService.delete(cacheKey);
     }
 
     const encodedPath = encodeURIComponent(path);
     let url = `/file/content?path=${encodedPath}`;
     if (basePath) {
       url += `&basePath=${encodeURIComponent(basePath)}`;
+    }
+    
+    // 強制刷新時添加時間戳防止瀏覽器快取
+    if (forceRefresh) {
+      url += `&_t=${Date.now()}`;
     }
     
     const result = await this.request<FileContentResponse>(url);

@@ -55,9 +55,11 @@ class DirectoryWatcher {
       try {
         // 建立 EventSource 連接到 SSE API
         const url = new URL('/api/directory/watch', window.location.origin);
-        url.searchParams.set('path', encodeURIComponent(targetPath));
-        url.searchParams.set('basePath', encodeURIComponent(basePath));
+        url.searchParams.set('path', targetPath || '');
+        url.searchParams.set('basePath', basePath);
         url.searchParams.set('recursive', recursive.toString());
+        
+        console.log(`[DirectoryWatcher] Creating SSE connection to: ${url.toString()}`);
         
         const eventSource = new EventSource(url.toString());
         
@@ -143,6 +145,7 @@ class DirectoryWatcher {
         }
         
         // 通知所有回調
+        console.log(`[DirectoryWatcher] Notifying ${callbacks.size} callbacks for event:`, message);
         this.notifyCallbacks(callbacks, message);
         
       } catch (error) {

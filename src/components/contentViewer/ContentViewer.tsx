@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, Spin, Alert, Typography, Tag, Button, Space } from 'antd';
-import { ReloadOutlined, ExclamationCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { FileItem, FileWatchInfo, FileWatchStatus } from '@/lib/types';
 import apiService from '@/lib/services/api';
@@ -31,7 +31,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
   const watchCleanupRef = useRef<(() => void) | null>(null);
   const currentFilePathRef = useRef<string | null>(null);
 
-  const loadFileContent = async (file: FileItem) => {
+  const loadFileContent = async (file: FileItem, forceRefresh = false) => {
     if (file.type !== 'file') return;
 
     try {
@@ -44,7 +44,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
         return;
       }
       
-      const response = await apiService.getFileContent(file.path, currentBasePath);
+      const response = await apiService.getFileContent(file.path, currentBasePath, forceRefresh);
       
       if (response.success) {
         setContent(response.data.content);
@@ -91,9 +91,9 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
           status: 'changed',
           lastModified: Date.now()
         });
-        // 自動重新載入檔案內容
+        // 自動重新載入檔案內容（強制刷新）
         if (selectedFile) {
-          loadFileContent(selectedFile);
+          loadFileContent(selectedFile, true);
         }
         break;
       
@@ -171,21 +171,6 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
     setWatchInfo({ status: 'idle' });
   }, []);
 
-  // 重新載入檔案內容
-  const reloadFileContent = useCallback(async () => {
-    if (!selectedFile) return;
-    
-    console.log('[ContentViewer] Reloading file content');
-    await loadFileContent(selectedFile);
-    
-    // 重新載入後重置監控狀態
-    if (watchInfo.status === 'changed') {
-      setWatchInfo({
-        status: 'watching',
-        lastModified: Date.now()
-      });
-    }
-  }, [selectedFile, watchInfo.status]);
 
   // 忽略檔案變更（關閉變更通知）
   const dismissFileChange = useCallback(() => {
@@ -255,29 +240,25 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
           return {
             type: 'warning' as const,
             icon: <ExclamationCircleOutlined />,
-            message: t('fileViewer.fileChanged', '檔案已變更'),
-            showReload: true
+            message: t('fileViewer.fileChanged', '檔案已變更')
           };
         case 'deleted':
           return {
             type: 'error' as const,
             icon: <ExclamationCircleOutlined />,
-            message: t('fileViewer.fileDeleted', '檔案已被刪除'),
-            showReload: false
+            message: t('fileViewer.fileDeleted', '檔案已被刪除')
           };
         case 'moved':
           return {
             type: 'error' as const,
             icon: <ExclamationCircleOutlined />,
-            message: t('fileViewer.fileMoved', '檔案已被移動') + (watchInfo.newPath ? ` → ${watchInfo.newPath}` : ''),
-            showReload: false
+            message: t('fileViewer.fileMoved', '檔案已被移動') + (watchInfo.newPath ? ` → ${watchInfo.newPath}` : '')
           };
         case 'error':
           return {
             type: 'error' as const,
             icon: <ExclamationCircleOutlined />,
-            message: `${t('fileViewer.watchError', '監控錯誤')}: ${watchInfo.error}`,
-            showReload: false
+            message: `${t('fileViewer.watchError', '監控錯誤')}: ${watchInfo.error}`
           };
         default:
           return null;
@@ -295,25 +276,22 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({ selectedFile, dark
         showIcon
         style={{ margin: '8px 16px' }}
         action={
-          config.showReload ? (
-            <Space>
-              <Button 
-                size="small" 
-                type="primary"
-                icon={<ReloadOutlined />}
-                onClick={reloadFileContent}
-                loading={loading}
-              >
-                {t('common.reload', '重新載入')}
-              </Button>
-              <Button 
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={dismissFileChange}
-              >
-                {t('common.dismiss', '忽略')}
-              </Button>
-            </Space>
+          watchInfo.status === 'changed' ? (
+            <Button 
+              type="text"
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={dismissFileChange}
+              style={{
+                border: 'none',
+                boxShadow: 'none',
+                padding: '4px',
+                height: 'auto',
+                width: 'auto',
+                minWidth: 'auto'
+              }}
+              aria-label={t('common.dismiss', '忽略')}
+            />
           ) : undefined
         }
       />

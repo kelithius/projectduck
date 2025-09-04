@@ -88,8 +88,8 @@ class ClientFileWatcher {
       try {
         // 建立 EventSource 連接到 SSE API
         const url = new URL('/api/file/watch', window.location.origin);
-        url.searchParams.set('path', encodeURIComponent(filePath));
-        url.searchParams.set('basePath', encodeURIComponent(basePath));
+        url.searchParams.set('path', filePath);
+        url.searchParams.set('basePath', basePath);
         
         const eventSource = new EventSource(url.toString());
         

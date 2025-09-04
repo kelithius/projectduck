@@ -381,14 +381,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           <span style={{ fontWeight: 500, color: darkMode ? '#fff' : '#000' }}>
             Claude Code
           </span>
-          <span style={{ 
-            color: isStreaming 
-              ? (darkMode ? '#52c41a' : '#389e0d')  // 深色主題用較亮綠色，淺色主題用較深綠色
-              : (darkMode ? '#999' : '#666'), 
-            fontSize: '12px'
-          }}>
-            {isStreaming ? t('chat.status.processing') : t('chat.status.ready')}
-          </span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: isAuthenticated ? '#52c41a' : '#ff4d4f', // 綠色表示已連接，紅色表示未連接
+              cursor: 'pointer'
+            }}
+            title={isAuthenticated 
+              ? (isStreaming ? t('chat.status.processing') : t('chat.status.ready'))
+              : t('chat.auth.required')
+            }
+          />
         </Space>
       </div>
 

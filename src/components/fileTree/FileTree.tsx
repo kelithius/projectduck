@@ -14,6 +14,7 @@ type TreeDataNode = ExtendedTreeDataNode;
 import { useTranslation } from 'react-i18next';
 import { FileItem, DirectoryWatchEvent, TreeNodeOperationData } from '@/lib/types';
 import apiService from '@/lib/services/api';
+import { cacheService } from '@/lib/services/cache';
 import { useProject } from '@/lib/providers/project-provider';
 import { FileIcon } from './FileIcon';
 import directoryWatcher from '@/lib/services/directoryWatcher';
@@ -22,11 +23,12 @@ import styles from './FileTree.module.css';
 
 interface FileTreeProps {
   onFileSelect: (file: FileItem | null) => void;
+  selectedFile?: FileItem | null; // 當前選中的檔案
   darkMode?: boolean;
   resetTrigger?: number; // 用於觸發重置的 prop
 }
 
-const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = false, resetTrigger }) => {
+const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, selectedFile, darkMode = false, resetTrigger }) => {
   const { message } = App.useApp();
   const { t } = useTranslation();
   const { getCurrentBasePath, currentProject, isLoading: projectLoading } = useProject();
@@ -55,6 +57,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     const item = nodeData.data;
     if (!item) return null;
     const isExpanded = expandedKeys.includes(nodeData.key?.toString() || '');
+    const isSelected = selectedFile && selectedFile.path === item.path;
     
     const handleTitleClick = async (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -139,7 +142,14 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
         onClick={handleTitleClick}
       >
         <FileIcon type={item.type} extension={item.extension} />
-        <span>{renderHighlightText(item.name, searchValue)}</span>
+        <span 
+          style={{
+            fontWeight: isSelected ? 'bold' : 'normal',
+            color: isSelected ? (darkMode ? '#1890ff' : '#1890ff') : 'inherit'
+          }}
+        >
+          {renderHighlightText(item.name, searchValue)}
+        </span>
         {isLoading && (
           <span style={{ 
             marginLeft: '4px', 
@@ -450,19 +460,64 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
     return updatedNodes;
   };
 
+  // 自動展開到選中檔案的路徑
+  const expandToSelectedFile = useCallback((selectedFilePath: string) => {
+    if (!selectedFilePath) return;
+    
+    // 獲取檔案路徑的所有父目錄
+    const pathParts = selectedFilePath.split('/');
+    const expandKeys: string[] = [];
+    
+    let currentPath = '';
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      if (currentPath) {
+        currentPath += '/' + pathParts[i];
+      } else {
+        currentPath = pathParts[i];
+      }
+      expandKeys.push(currentPath);
+    }
+    
+    if (expandKeys.length > 0) {
+      console.log('[FileTree] Expanding to selected file:', selectedFilePath, 'expand keys:', expandKeys);
+      setExpandedKeys(prevKeys => {
+        const newKeys = [...new Set([...prevKeys, ...expandKeys])];
+        return newKeys;
+      });
+    }
+  }, []);
+
   // 處理目錄變動事件
   const handleDirectoryWatchEvent = useCallback((event: DirectoryWatchEvent) => {
+    console.log(`[FileTree] handleDirectoryWatchEvent called with:`, event);
+    
     const { type, relativePath, stats } = event;
     
-    if (!relativePath || relativePath === '') return;
+    if (!relativePath || relativePath === '') {
+      console.log(`[FileTree] Ignoring event with empty relativePath:`, event);
+      return;
+    }
     
-    console.log(`[FileTree] Directory event: ${type} for ${relativePath}`, event);
+    console.log(`[FileTree] Processing directory event: ${type} for ${relativePath}`, event);
     
     // 清除相關的 API 快取
     if (relativePath) {
-      const cacheKey = getCurrentBasePath() ? `directory:${getCurrentBasePath()}:${relativePath}` : `directory:${relativePath}`;
-      // 假設有快取清除功能
-      // cacheService.remove(cacheKey);
+      const basePath = getCurrentBasePath();
+      const parentPath = relativePath.includes('/') ? relativePath.substring(0, relativePath.lastIndexOf('/')) : '';
+      
+      // 清除當前目錄的快取
+      const cacheKey = basePath ? `directory:${basePath}:${relativePath}` : `directory:${relativePath}`;
+      cacheService.delete(cacheKey);
+      
+      // 清除父目錄的快取（如果有的話）
+      if (parentPath) {
+        const parentCacheKey = basePath ? `directory:${basePath}:${parentPath}` : `directory:${parentPath}`;
+        cacheService.delete(parentCacheKey);
+      } else {
+        // 如果沒有父目錄，清除根目錄快取
+        const rootCacheKey = basePath ? `directory:${basePath}:` : `directory:`;
+        cacheService.delete(rootCacheKey);
+      }
     }
     
     const parentPath = relativePath.includes('/') ? relativePath.substring(0, relativePath.lastIndexOf('/')) : '';
@@ -492,11 +547,21 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, darkMode = f
               nodeKey: relativePath,
               nodeData: newFileItem
             });
+            
+            // 如果當前有選中檔案，確保展開狀態正確
+            if (selectedFile) {
+              setTimeout(() => expandToSelectedFile(selectedFile.path), 100);
+            }
           }
           break;
           
         case 'unlink':
         case 'unlinkDir':
+          // 如果被刪除的檔案是當前選中的檔案，清除選擇
+          if (selectedFile && selectedFile.path === relativePath) {
+            onFileSelect(null);
+          }
+          
           smartUpdateTreeNode({
             operation: 'remove',
             parentKey: parentPath,
