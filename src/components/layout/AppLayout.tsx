@@ -350,14 +350,17 @@ const AppLayoutInner: React.FC = () => {
             </div>
           </div>
           
-          {/* Middle and Right Panes: Resizable Content */}
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            {/* Always show content viewer */}
+          {/* Middle and Right Panes: Content and Chat Panel */}
+          <div style={{ 
+            flex: 1, 
+            display: 'flex', 
+            overflow: 'hidden'
+          }}>
+            {/* Content Viewer - Flexible width */}
             <div style={{ 
               flex: 1, 
               height: '100%',
-              transition: (isDragging || isDraggingFileTree) ? 'none' : 'margin-right 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
-              marginRight: chatPanelVisible ? `${chatPanelWidth}px` : '0'
+              overflow: 'hidden'
             }}>
               <Suspense fallback={
                 <div style={{ 
@@ -373,52 +376,56 @@ const AppLayoutInner: React.FC = () => {
               </Suspense>
             </div>
 
-            {/* Chat Panel - Fixed position with slide animation and resizable */}
+            {/* Chat Panel - Always rendered for state persistence */}
             <div
               style={{
-                position: 'fixed',
-                top: '60px', // Header height
-                right: 0,
-                width: `${chatPanelWidth}px`,
-                height: 'calc(100vh - 60px)',
-                transform: chatPanelVisible ? 'translateX(0)' : 'translateX(100%)',
-                transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
-                zIndex: 1000,
-                boxShadow: chatPanelVisible ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
-                display: 'flex'
+                width: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
+                minWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
+                maxWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
+                height: '100%',
+                overflow: 'hidden',
+                transition: isDragging ? 'none' : 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                display: 'flex',
+                backgroundColor: isDark ? '#1f1f1f' : '#fff',
+                borderLeft: chatPanelVisible ? `1px solid ${isDark ? '#303030' : '#f0f0f0'}` : 'none'
               }}
             >
-              {/* 拖拽手柄 */}
-              <div
-                style={{
-                  width: '4px',
-                  height: '100%',
-                  backgroundColor: 'transparent',
-                  cursor: 'col-resize',
-                  position: 'relative',
-                  zIndex: 1001
-                }}
-                onMouseDown={handleChatPanelMouseDown}
-              >
-                {/* 可見的拖拽指示線 */}
+              {/* 拖拽手柄 - 只在可見時顯示 */}
+              {chatPanelVisible && (
                 <div
                   style={{
-                    position: 'absolute',
-                    left: '1px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '2px',
-                    height: '40px',
-                    backgroundColor: isDark ? '#555' : '#ddd',
-                    borderRadius: '1px',
-                    opacity: isDragging ? 1 : 0.3,
-                    transition: 'opacity 0.2s ease'
+                    width: '4px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    cursor: 'col-resize',
+                    position: 'relative'
                   }}
-                />
-              </div>
-              
-              {/* ChatPanel 內容 */}
-              <div style={{ flex: 1, overflow: 'hidden' }}>
+                  onMouseDown={handleChatPanelMouseDown}
+                >
+                  {/* 可見的拖拽指示線 */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '1px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '2px',
+                      height: '40px',
+                      backgroundColor: isDark ? '#555' : '#ddd',
+                      borderRadius: '1px',
+                      opacity: isDragging ? 1 : 0.3,
+                      transition: 'opacity 0.2s ease'
+                    }}
+                  />
+                </div>
+              )}
+          
+              {/* ChatPanel 內容 - 始終渲染以保持狀態 */}
+              <div style={{ 
+                flex: 1, 
+                overflow: 'hidden',
+                display: chatPanelVisible ? 'block' : 'none' // 使用 display 控制可見性而非條件渲染
+              }}>
                 <Suspense fallback={
                   <div style={{ 
                     display: 'flex', 

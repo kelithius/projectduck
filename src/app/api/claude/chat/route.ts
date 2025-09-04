@@ -46,6 +46,15 @@ export async function POST(request: NextRequest) {
         // 監聽請求取消信號
         const abortHandler = () => {
           console.log('Request aborted by client');
+          // 發送取消事件而不是錯誤事件
+          try {
+            sendEvent('complete', { 
+              message: 'Request cancelled by user',
+              cancelled: true 
+            });
+          } catch (e) {
+            // 如果無法發送事件（連接已關閉），直接忽略
+          }
           claudeSDKService.interruptQuery(projectPath);
           controller.close();
         };

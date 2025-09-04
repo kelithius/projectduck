@@ -277,9 +277,13 @@ class ClaudeCodeService {
 
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        // 取消請求時發送 complete 事件而不是 error 事件
         onEvent({
-          type: 'error',
-          data: { error: 'Request was cancelled' }
+          type: 'complete',
+          data: { 
+            message: 'Request cancelled by user',
+            cancelled: true 
+          }
         });
       } else {
         console.error('SSE stream error:', error);

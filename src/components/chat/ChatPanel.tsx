@@ -175,25 +175,55 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
               break;
 
             case 'complete':
-              console.log('Query completed');
-              setIsStreaming(false);
-              setIsThinking(false);
-              // 如果有累積的訊息內容，建立最終訊息
-              if (currentAssistantMessage.trim()) {
-                const finalMessage: Message = {
-                  id: assistantMessageId,
-                  role: 'assistant',
-                  content: currentAssistantMessage,
+              // 檢查是否為取消事件
+              if (event.data?.cancelled) {
+                console.log('Query cancelled by user');
+                setIsStreaming(false);
+                setIsThinking(false);
+                
+                // 如果有累積的訊息內容，標記為已取消
+                if (currentAssistantMessage.trim()) {
+                  const cancelledMessage: Message = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: currentAssistantMessage,
+                    timestamp: new Date(),
+                    status: 'sent',
+                    isCancelled: true
+                  };
+                  setMessages(prev => [...prev, cancelledMessage]);
+                }
+                
+                // 添加系統取消訊息
+                const systemMessage: Message = {
+                  id: uuidv4(),
+                  role: 'system',
+                  content: t('chat.status.cancelledByUser', 'Cancelled by user'),
                   timestamp: new Date(),
                   status: 'sent'
                 };
-                setMessages(prev => [...prev, finalMessage]);
+                setMessages(prev => [...prev, systemMessage]);
                 setCurrentAssistantMessage('');
+              } else {
+                console.log('Query completed normally');
+                setIsStreaming(false);
+                setIsThinking(false);
+                // 如果有累積的訊息內容，建立最終訊息
+                if (currentAssistantMessage.trim()) {
+                  const finalMessage: Message = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: currentAssistantMessage,
+                    timestamp: new Date(),
+                    status: 'sent'
+                  };
+                  setMessages(prev => [...prev, finalMessage]);
+                  setCurrentAssistantMessage('');
+                }
               }
               break;
 
             case 'error':
-              console.error('Query error:', event.data);
               setIsStreaming(false);
               setIsThinking(false);
               
@@ -203,12 +233,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
                 errorMsg = typeof event.data.error === 'string' ? event.data.error : t('chat.error.unknown');
               }
               
-              // 如果是取消錯誤，不顯示錯誤訊息
-              if (errorMsg.includes('cancelled') || errorMsg.includes('aborted')) {
-                console.log('Request was cancelled');
+              // 檢查是否為取消相關的錯誤
+              const isCancelledError = errorMsg.includes('cancelled') || 
+                                     errorMsg.includes('aborted') || 
+                                     errorMsg.includes('Request was cancelled') ||
+                                     (event.data && Object.keys(event.data).length === 0); // 空物件通常表示取消
+              
+              if (isCancelledError) {
+                console.log('Request was cancelled or aborted');
                 return;
               }
               
+              // 只有非取消錯誤才記錄和顯示
+              console.error('Query error:', errorMsg);
               message.error(t('chat.error.query') + ': ' + errorMsg);
               break;
           }
