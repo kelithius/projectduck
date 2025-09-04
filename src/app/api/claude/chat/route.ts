@@ -43,6 +43,15 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
         
+        // 監聽請求取消信號
+        const abortHandler = () => {
+          console.log('Request aborted by client');
+          claudeSDKService.interruptQuery(projectPath);
+          controller.close();
+        };
+        
+        request.signal?.addEventListener('abort', abortHandler);
+        
         const sendEvent = (eventType: string, data: any) => {
           const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(message));
@@ -67,8 +76,10 @@ export async function POST(request: NextRequest) {
           });
 
           if (!queryResult.success) {
+            const error = queryResult.error || 'Failed to start query';
+            console.error('Query start failed:', error);
             sendEvent('error', { 
-              error: queryResult.error || 'Failed to start query'
+              error: error
             });
             controller.close();
             return;
@@ -102,6 +113,7 @@ export async function POST(request: NextRequest) {
             error: error instanceof Error ? error.message : 'Unknown error occurred'
           });
         } finally {
+          request.signal?.removeEventListener('abort', abortHandler);
           controller.close();
         }
       },

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, List, Avatar, Space, Upload, message as antdMessage, Spin } from 'antd';
-import { SendOutlined, PaperClipOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { Card, Input, Button, List, Avatar, Space, Upload, Spin, App } from 'antd';
+import { SendOutlined, PaperClipOutlined, RobotOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { Message, FileAttachment } from '@/lib/types/chat';
@@ -21,6 +21,7 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, className }) => {
   const { t } = useTranslation();
   const { getCurrentBasePath } = useProject();
+  const { message } = App.useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +43,38 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
   useEffect(() => {
     scrollToBottom();
   }, [messages, currentAssistantMessage]);
+
+  // 初始化對話歷史和載入歷史訊息
+  useEffect(() => {
+    const initializeChat = async () => {
+      const currentProject = getCurrentBasePath();
+      if (currentProject) {
+        // 檢查是否為新視窗或頁面重新整理
+        const isPageRefresh = sessionStorage.getItem('pageRefreshed') === 'true';
+        const isNewWindow = sessionStorage.getItem('isNewWindow') === 'true';
+        const windowId = sessionStorage.getItem('windowId');
+        
+        console.log('[ChatPanel] Initialize - isPageRefresh:', isPageRefresh, 'isNewWindow:', isNewWindow, 'windowId:', windowId);
+        
+        if (isPageRefresh || isNewWindow) {
+          // 頁面重新整理或新視窗時清除對話歷史
+          console.log('[ChatPanel] New session - clearing conversation history');
+          await claudeCodeService.clearSession(currentProject);
+          setMessages([]);
+          sessionStorage.removeItem('pageRefreshed');
+          sessionStorage.removeItem('isNewWindow');
+        } else {
+          // 載入現有對話歷史（同一視窗內的 ChatPanel 重新掛載）
+          console.log('[ChatPanel] Loading existing conversation history for same window');
+          const history = await claudeCodeService.getMessageHistory(currentProject);
+          console.log('[ChatPanel] Loaded history:', history.length, 'messages');
+          setMessages(history);
+        }
+      }
+    };
+    
+    initializeChat();
+  }, [getCurrentBasePath]);
 
   // 檢查認證狀態
   useEffect(() => {
@@ -73,7 +106,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
   const handleSendMessage = async () => {
     if (!inputValue.trim() && attachments.length === 0) return;
     if (!isAuthenticated) {
-      antdMessage.error(t('chat.auth.error'));
+      message.error(t('chat.auth.error'));
       return;
     }
 
@@ -86,9 +119,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       attachments: [...attachments]
     };
 
-    setMessages(prev => [...prev, newMessage]);
     const messageContent = inputValue.trim();
     const messageAttachments = [...fileInputRef.current];
+    
+    // 建立完整的對話歷史（包含新訊息）
+    const updatedMessages = [...messages, newMessage];
+    
+    setMessages(updatedMessages);
     setInputValue('');
     setAttachments([]);
     fileInputRef.current = [];
@@ -121,6 +158,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           content: messageContent,
           attachments: messageAttachments,
           projectPath: currentProject
+          // 不需要傳送對話歷史，Claude SDK 會自動管理
         },
         (event: StreamEvent) => {
           console.log('SSE Event:', event);
@@ -158,7 +196,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
               console.error('Query error:', event.data);
               setIsStreaming(false);
               setIsThinking(false);
-              antdMessage.error(t('chat.error.query') + (event.data.error || t('chat.error.unknown')));
+              
+              // 改善錯誤處理，避免顯示空物件
+              let errorMsg = t('chat.error.unknown');
+              if (event.data?.error) {
+                errorMsg = typeof event.data.error === 'string' ? event.data.error : t('chat.error.unknown');
+              }
+              
+              // 如果是取消錯誤，不顯示錯誤訊息
+              if (errorMsg.includes('cancelled') || errorMsg.includes('aborted')) {
+                console.log('Request was cancelled');
+                return;
+              }
+              
+              message.error(t('chat.error.query') + ': ' + errorMsg);
               break;
           }
         }
@@ -173,10 +224,51 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           msg.id === newMessage.id ? { ...msg, status: 'error' as const } : msg
         )
       );
-      antdMessage.error(error instanceof Error ? error.message : t('chat.error.send'));
+      message.error(error instanceof Error ? error.message : t('chat.error.send'));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 處理取消訊息發送
+  const handleCancelMessage = () => {
+    claudeCodeService.cancelCurrentRequest();
+    
+    // 如果有正在進行的助手訊息，將其標記為已取消
+    if (currentAssistantMessageId && (currentAssistantMessage.trim() || isThinking)) {
+      const cancelledMessage: Message = {
+        id: currentAssistantMessageId,
+        role: 'assistant',
+        content: currentAssistantMessage.trim() || '',
+        timestamp: new Date(),
+        status: 'sent',
+        isCancelled: true
+      };
+      
+      setMessages(prev => [...prev, cancelledMessage]);
+      
+      // 添加系統取消訊息
+      const systemCancelMessage: Message = {
+        id: uuidv4(),
+        role: 'system',
+        content: t('chat.status.cancelledByUser', 'Cancelled by user'),
+        timestamp: new Date(),
+        status: 'sent'
+      };
+      
+      setMessages(prev => [...prev, systemCancelMessage]);
+    } else {
+      // 如果沒有正在進行的消息，只顯示取消通知
+      message.info(t('chat.status.cancelled', '已取消請求'));
+    }
+    
+    // 重置所有狀態
+    setIsLoading(false);
+    setIsStreaming(false);
+    setIsThinking(false);
+    setCurrentAssistantMessage('');
+    setCurrentAssistantMessageId('');
+    setToolActivities(new Map());
   };
 
   // 處理 SDK 訊息
@@ -482,9 +574,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
             autoSize={{ minRows: 1, maxRows: 4 }}
             style={{ 
               flex: 1,
+              minHeight: '32px', // 設定最小高度防止閃動
               backgroundColor: darkMode ? '#1f1f1f' : '#fff',
               borderColor: darkMode ? '#303030' : '#d9d9d9',
-              color: darkMode ? '#fff' : '#000'
+              color: darkMode ? '#fff' : '#000',
+              resize: 'none' // 禁止手動調整大小
             }}
             disabled={isLoading}
           />
@@ -505,10 +599,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           </Upload>
           <Button 
             type="primary" 
-            icon={<SendOutlined />} 
-            onClick={handleSendMessage}
-            loading={isLoading}
-            disabled={(!inputValue.trim() && attachments.length === 0) || isLoading}
+            icon={isLoading ? <CloseOutlined /> : <SendOutlined />}
+            onClick={isLoading ? handleCancelMessage : handleSendMessage}
+            loading={false}
+            disabled={!isLoading && (!inputValue.trim() && attachments.length === 0)}
+            title={isLoading ? t('chat.action.cancel', '取消') : t('chat.action.send', '發送')}
           />
         </Space.Compact>
       </div>

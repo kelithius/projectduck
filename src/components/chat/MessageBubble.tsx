@@ -32,8 +32,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
   const [typingText, setTypingText] = useState(t('chat.status.typing'));
 
-  const isAssistant = message.role === 'assistant';
+  const isAssistant = message.role === 'assistant' || message.role === 'system';
   const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
 
   const toggleToolExpansion = (index: number) => {
     const newExpanded = new Set(expandedTools);
@@ -92,7 +93,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div style={{
             fontSize: '14px',
             lineHeight: '1',
-            color: darkMode ? '#e6e6e6' : '#000',
+            color: darkMode ? '#888' : '#666',
             fontFamily: 'Monaco, Consolas, "Courier New", monospace'
           }}>
             {typingText}
@@ -400,7 +401,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Terminal 風格設計
   return (
     <div style={{
-      marginBottom: '16px',
+      marginBottom: '16px', // 統一間距
       fontFamily: 'Monaco, Consolas, "Courier New", monospace',
       fontSize: '14px',
       lineHeight: '1.6'
@@ -434,7 +435,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       {isAssistant && (
         <div style={{
           marginLeft: '16px', // 縮排表示 AI 回應
-          color: darkMode ? '#e6e6e6' : '#000'
+          color: isSystem 
+            ? (darkMode ? '#888' : '#666') // System message 用灰色
+            : (darkMode ? '#e6e6e6' : '#000') // 一般 AI 回應用正常顏色
         }}>
           {renderContent()}
           
@@ -443,6 +446,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           
         </div>
       )}
+      
       
       <style jsx>{`
         @keyframes pulse {

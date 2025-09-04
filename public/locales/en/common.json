@@ -79,7 +79,9 @@
       "ready": "Ready",
       "processing": "Processing...",
       "checking": "Checking authentication status...",
-      "typing": "Typing"
+      "typing": "Typing",
+      "cancelled": "Request cancelled",
+      "cancelledByUser": "Cancelled by user"
     },
     "auth": {
       "required": "Claude Code authentication required",
@@ -96,6 +98,10 @@
       "unknown": "Unknown error",
       "execution": "Execution failed: ",
       "project": "No project path available"
+    },
+    "action": {
+      "send": "Send",
+      "cancel": "Cancel"
     }
   }
 }

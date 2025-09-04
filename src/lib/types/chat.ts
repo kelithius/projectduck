@@ -5,6 +5,7 @@ export interface Message {
   timestamp: Date;
   attachments?: FileAttachment[];
   status?: 'sending' | 'sent' | 'error';
+  isCancelled?: boolean;
 }
 
 export interface FileAttachment {

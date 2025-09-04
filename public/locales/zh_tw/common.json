@@ -79,7 +79,9 @@
       "ready": "準備就緒",
       "processing": "正在處理中...",
       "checking": "檢查認證狀態...",
-      "typing": "正在輸入"
+      "typing": "正在輸入",
+      "cancelled": "已取消請求",
+      "cancelledByUser": "使用者已取消"
     },
     "auth": {
       "required": "需要完成 Claude Code 認證",
@@ -96,6 +98,10 @@
       "unknown": "未知錯誤",
       "execution": "執行失敗:",
       "project": "沒有可用的專案路徑"
+    },
+    "action": {
+      "send": "發送",
+      "cancel": "取消"
     }
   }
 }

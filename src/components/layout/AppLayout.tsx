@@ -37,8 +37,32 @@ const AppLayoutInner: React.FC = () => {
   const [mounted, setMounted] = useState(false);
   const [projectSidebarVisible, setProjectSidebarVisible] = useState(false);
   const [chatPanelVisible, setChatPanelVisible] = useState(false);
+  const [chatPanelWidth, setChatPanelWidth] = useState(350); // 預設寬度
+  const [fileTreeWidth, setFileTreeWidth] = useState(260); // FileTree 預設寬度
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingFileTree, setIsDraggingFileTree] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // 為每個新視窗/標籤頁產生唯一 ID
+      let windowId = sessionStorage.getItem('windowId');
+      if (!windowId) {
+        windowId = `window_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('windowId', windowId);
+        sessionStorage.setItem('isNewWindow', 'true');
+        console.log('[AppLayout] New window detected, assigned ID:', windowId);
+      }
+      
+      // 檢查是否為頁面重新整理
+      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      if (navigation && navigation.type === 'reload') {
+        sessionStorage.setItem('pageRefreshed', 'true');
+        console.log('[AppLayout] Page was refreshed, marking for session clear');
+      } else {
+        console.log('[AppLayout] Normal navigation, windowId:', windowId);
+      }
+    }
+    
     setMounted(true);
     let isCancelled = false;
     
@@ -93,6 +117,60 @@ const AppLayoutInner: React.FC = () => {
 
   const toggleChatPanel = () => {
     setChatPanelVisible(!chatPanelVisible);
+  };
+
+  // ChatPanel 拖拽處理邏輯
+  const handleChatPanelMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 300;
+      const maxWidth = Math.min(800, window.innerWidth - 400); // 最大寬度不超過視窗寬度減去左側最小空間
+      
+      setChatPanelWidth(Math.min(Math.max(newWidth, minWidth), maxWidth));
+    };
+    
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  // FileTree 拖拽處理邏輯
+  const handleFileTreeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingFileTree(true);
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = e.clientX;
+      const minWidth = 200;
+      const maxWidth = Math.min(500, window.innerWidth - 600); // 確保右側有足夠空間
+      
+      setFileTreeWidth(Math.min(Math.max(newWidth, minWidth), maxWidth));
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingFileTree(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
   };
 
   if (!mounted) {
@@ -225,72 +303,137 @@ const AppLayoutInner: React.FC = () => {
       
       <Content style={contentStyle}>
         <div style={{ display: 'flex', height: '100%' }}>
-          {/* Left Pane: File Tree - Fixed Width */}
+          {/* Left Pane: File Tree - Resizable Width */}
           <div style={{ 
-            width: '260px', 
-            minWidth: '260px', 
-            maxWidth: '260px',
+            width: `${fileTreeWidth}px`,
+            minWidth: `${fileTreeWidth}px`,
+            maxWidth: `${fileTreeWidth}px`,
             ...sidebarStyle,
-            borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`
+            display: 'flex'
           }}>
-            <FileTree onFileSelect={handleFileSelect} selectedFile={selectedFile} darkMode={isDark} />
+            {/* FileTree 內容 */}
+            <div style={{ 
+              flex: 1,
+              borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+              overflow: 'hidden'
+            }}>
+              <FileTree onFileSelect={handleFileSelect} selectedFile={selectedFile} darkMode={isDark} />
+            </div>
+            
+            {/* 拖拽手柄 */}
+            <div
+              style={{
+                width: '4px',
+                height: '100%',
+                backgroundColor: 'transparent',
+                cursor: 'col-resize',
+                position: 'relative',
+                zIndex: 999
+              }}
+              onMouseDown={handleFileTreeMouseDown}
+            >
+              {/* 可見的拖拽指示線 */}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '1px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '2px',
+                  height: '40px',
+                  backgroundColor: isDark ? '#555' : '#ddd',
+                  borderRadius: '1px',
+                  opacity: isDraggingFileTree ? 1 : 0.3,
+                  transition: 'opacity 0.2s ease'
+                }}
+              />
+            </div>
           </div>
           
           {/* Middle and Right Panes: Resizable Content */}
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            {chatPanelVisible ? (
-              <Allotment>
-                {/* Middle Pane: Content Viewer */}
-                <Allotment.Pane minSize={300}>
-                  <div style={{ height: '100%' }}>
-                    <Suspense fallback={
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center', 
-                        height: '100%' 
-                      }}>
-                        <Spin size="large" />
-                      </div>
-                    }>
-                      <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
-                    </Suspense>
-                  </div>
-                </Allotment.Pane>
+            {/* Always show content viewer */}
+            <div style={{ 
+              flex: 1, 
+              height: '100%',
+              transition: (isDragging || isDraggingFileTree) ? 'none' : 'margin-right 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
+              marginRight: chatPanelVisible ? `${chatPanelWidth}px` : '0'
+            }}>
+              <Suspense fallback={
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%' 
+                }}>
+                  <Spin size="large" />
+                </div>
+              }>
+                <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
+              </Suspense>
+            </div>
 
-                {/* Right Pane: Chat Panel */}
-                <Allotment.Pane size={350} minSize={300} maxSize={500}>
-                  <Suspense fallback={
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
-                      height: '100%' 
-                    }}>
-                      <Spin size="large" />
-                    </div>
-                  }>
-                    <ChatPanel darkMode={isDark} />
-                  </Suspense>
-                </Allotment.Pane>
-              </Allotment>
-            ) : (
-              /* Only Content Viewer when chat panel is closed */
-              <div style={{ height: '100%', flex: 1 }}>
+            {/* Chat Panel - Fixed position with slide animation and resizable */}
+            <div
+              style={{
+                position: 'fixed',
+                top: '60px', // Header height
+                right: 0,
+                width: `${chatPanelWidth}px`,
+                height: 'calc(100vh - 60px)',
+                transform: chatPanelVisible ? 'translateX(0)' : 'translateX(100%)',
+                transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                zIndex: 1000,
+                boxShadow: chatPanelVisible ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
+                display: 'flex'
+              }}
+            >
+              {/* 拖拽手柄 */}
+              <div
+                style={{
+                  width: '4px',
+                  height: '100%',
+                  backgroundColor: 'transparent',
+                  cursor: 'col-resize',
+                  position: 'relative',
+                  zIndex: 1001
+                }}
+                onMouseDown={handleChatPanelMouseDown}
+              >
+                {/* 可見的拖拽指示線 */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '1px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '2px',
+                    height: '40px',
+                    backgroundColor: isDark ? '#555' : '#ddd',
+                    borderRadius: '1px',
+                    opacity: isDragging ? 1 : 0.3,
+                    transition: 'opacity 0.2s ease'
+                  }}
+                />
+              </div>
+              
+              {/* ChatPanel 內容 */}
+              <div style={{ flex: 1, overflow: 'hidden' }}>
                 <Suspense fallback={
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'center', 
                     alignItems: 'center', 
-                    height: '100%' 
+                    height: '100%',
+                    backgroundColor: isDark ? '#1f1f1f' : '#fff'
                   }}>
                     <Spin size="large" />
                   </div>
                 }>
-                  <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
+                  <ChatPanel darkMode={isDark} />
                 </Suspense>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </Content>

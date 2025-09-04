@@ -21,6 +21,51 @@ class ClaudeCodeService {
   private currentProject: string | null = null;
   private abortController: AbortController | null = null;
 
+  async getMessageHistory(projectPath: string): Promise<Message[]> {
+    try {
+      const response = await fetch(`/api/claude/history?projectPath=${encodeURIComponent(projectPath)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to load conversation history:', response.statusText);
+        return [];
+      }
+
+      const result = await response.json();
+      return result.success ? result.messages || [] : [];
+    } catch (error) {
+      console.warn('Error loading conversation history:', error);
+      return [];
+    }
+  }
+
+  async clearSession(projectPath: string): Promise<boolean> {
+    try {
+      // 調用後端 API 來清除 Claude SDK session
+      const response = await fetch(`/api/claude/session/clear?projectPath=${encodeURIComponent(projectPath)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to clear session:', response.statusText);
+        return false;
+      }
+
+      const result = await response.json();
+      return result.success || false;
+    } catch (error) {
+      console.warn('Error clearing session:', error);
+      return false;
+    }
+  }
+
   async checkAuthentication(): Promise<boolean> {
     try {
       const response = await fetch('/api/claude/auth', {

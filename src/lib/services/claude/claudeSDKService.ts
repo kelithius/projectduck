@@ -47,12 +47,20 @@ export class ClaudeSDKService {
       // 建立使用者訊息
       const userMessage = session.addUserMessage(prompt, processedAttachments);
 
-      // 設定 SDK 選項
+      console.log('[ClaudeSDK] Starting query with options:', {
+        cwd: projectPath,
+        permissionMode,
+        allowedTools: allowedTools || ['Read', 'Write', 'Edit', 'Bash'],
+        maxTurns: maxTurns || 50,
+        continue: true
+      });
+      
       const sdkOptions: Options = {
         cwd: projectPath,
         permissionMode,
         allowedTools: allowedTools || ['Read', 'Write', 'Edit', 'Bash'],
         maxTurns: maxTurns || 50,
+        continue: true, // 啟用對話連續性
         abortController: new AbortController(),
         hooks: {
           UserPromptSubmit: [{
@@ -114,10 +122,12 @@ export class ClaudeSDKService {
 
     } catch (error) {
       console.error('Failed to start query:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Detailed error:', errorMessage);
       return {
         success: false,
         sessionId: '',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       };
     }
   }
@@ -142,6 +152,9 @@ export class ClaudeSDKService {
       for await (const message of queryGenerator) {
         // 儲存 SDK 訊息到 session
         session.addSdkMessage(message);
+        
+        // 簡單記錄訊息類型（保留用於除錯）
+        console.log('[ClaudeSDK] SDK Message type:', message.type);
         
         // 轉換並加入到 UI 訊息歷史
         const uiMessage = session.convertSdkMessageToUiMessage(message);
@@ -197,6 +210,7 @@ export class ClaudeSDKService {
 
   public async clearSession(projectPath: string): Promise<boolean> {
     try {
+      console.log('[ClaudeSDK] Clearing session for project:', projectPath);
       await sessionManager.clearSession(projectPath);
       return true;
     } catch (error) {
