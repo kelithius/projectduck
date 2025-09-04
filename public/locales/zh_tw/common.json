@@ -89,7 +89,8 @@
       "instruction": "請先在終端機執行以下命令完成認證："
     },
     "input": {
-      "placeholder": "輸入訊息... (Enter 發送, Shift+Enter 換行)",
+      "placeholder": "輸入訊息...",
+      "shortcut": "Enter 發送, Shift+Enter 換行",
       "attachment": "附件"
     },
     "error": {
@@ -102,6 +103,11 @@
     "action": {
       "send": "發送",
       "cancel": "取消"
+    },
+    "fileContext": {
+      "current": "當前檔案:",
+      "clear": "清除檔案上下文",
+      "included": "已包含檔案上下文"
     }
   }
 }

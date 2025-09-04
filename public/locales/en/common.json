@@ -89,7 +89,8 @@
       "instruction": "Please run the following command in terminal to authenticate:"
     },
     "input": {
-      "placeholder": "Type a message... (Enter to send, Shift+Enter for new line)",
+      "placeholder": "Type a message...",
+      "shortcut": "Enter to send, Shift+Enter for new line",
       "attachment": "Attachment"
     },
     "error": {
@@ -102,6 +103,11 @@
     "action": {
       "send": "Send",
       "cancel": "Cancel"
+    },
+    "fileContext": {
+      "current": "Current file:",
+      "clear": "Clear current file context",
+      "included": "File context included in message"
     }
   }
 }

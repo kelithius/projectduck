@@ -1,3 +1,10 @@
+export interface CurrentFileInfo {
+  name: string;
+  path: string;
+  type: string;
+  extension: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -6,6 +13,7 @@ export interface Message {
   attachments?: FileAttachment[];
   status?: 'sending' | 'sent' | 'error';
   isCancelled?: boolean;
+  currentFile?: CurrentFileInfo;
 }
 
 export interface FileAttachment {

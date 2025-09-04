@@ -90,11 +90,10 @@ const AppLayoutInner: React.FC = () => {
   const handleFileSelect = (file: FileItem | null) => {
     setSelectedFile(file);
     
-    // 通知 Claude Code 當前選擇的檔案
+    // 通知 Claude Code 和內部組件當前選擇的檔案
     if (file && typeof window !== 'undefined') {
       try {
-        // 使用 postMessage 向 Claude Code 通知檔案選擇
-        window.parent?.postMessage({
+        const fileSelectionMessage = {
           type: 'fileSelected',
           file: {
             name: file.name,
@@ -102,11 +101,17 @@ const AppLayoutInner: React.FC = () => {
             type: file.type,
             extension: file.extension
           }
-        }, '*');
+        };
+
+        // 通知 Claude Code (如果在 iframe 中)
+        window.parent?.postMessage(fileSelectionMessage, '*');
         
-        console.log('[AppLayout] Notified Claude Code of file selection:', file.path);
+        // 通知同一視窗中的組件 (ChatPanel)
+        window.postMessage(fileSelectionMessage, '*');
+        
+        console.log('[AppLayout] Notified file selection:', file.path);
       } catch (error) {
-        console.log('[AppLayout] Failed to notify Claude Code:', error);
+        console.log('[AppLayout] Failed to notify file selection:', error);
       }
     }
   };

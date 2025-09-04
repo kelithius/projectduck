@@ -431,6 +431,34 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
       )}
       
+      {/* 檔案上下文指示器 - 只對使用者訊息顯示 */}
+      {isUser && message.currentFile && (
+        <div style={{
+          marginLeft: '24px', // 與使用者訊息對齊
+          marginTop: '4px',
+          marginBottom: '8px',
+          padding: '4px 8px',
+          backgroundColor: darkMode ? '#1a1a1a' : '#f0f8ff',
+          borderLeft: `2px solid ${darkMode ? '#1890ff' : '#1890ff'}`,
+          borderRadius: '0 4px 4px 0',
+          fontSize: '11px',
+          color: darkMode ? '#888' : '#666',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span style={{ color: darkMode ? '#1890ff' : '#1890ff' }}>📄</span>
+          <span>
+            <code style={{
+              backgroundColor: darkMode ? '#2a2a2a' : '#e8e8e8',
+              padding: '1px 4px',
+              borderRadius: '2px',
+              fontSize: '10px'
+            }}>{message.currentFile.name}</code>
+          </span>
+        </div>
+      )}
+      
       {/* AI 回應 */}
       {isAssistant && (
         <div style={{

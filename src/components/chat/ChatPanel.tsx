@@ -5,7 +5,7 @@ import { Card, Input, Button, List, Avatar, Space, Upload, Spin, App } from 'ant
 import { SendOutlined, PaperClipOutlined, RobotOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
-import { Message, FileAttachment } from '@/lib/types/chat';
+import { Message, FileAttachment, CurrentFileInfo } from '@/lib/types/chat';
 import claudeCodeService, { type StreamEvent } from '@/lib/services/claudeCodeService';
 import { useProject } from '@/lib/providers/project-provider';
 import type { SDKMessage } from '@anthropic-ai/claude-code';
@@ -17,6 +17,8 @@ interface ChatPanelProps {
   darkMode?: boolean;
   className?: string;
 }
+
+// 移除重複定義，直接使用導入的 CurrentFileInfo
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, className }) => {
   const { t } = useTranslation();
@@ -32,6 +34,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
   const [isThinking, setIsThinking] = useState(false);
   const [toolActivities, setToolActivities] = useState<Map<string, ToolActivity[]>>(new Map());
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>('');
+  const [currentFile, setCurrentFile] = useState<CurrentFileInfo | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<File[]>([]);
   const currentSessionRef = useRef<string | null>(null);
@@ -76,6 +79,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
     initializeChat();
   }, [getCurrentBasePath]);
 
+  // 監聽來自父視窗的檔案選擇事件
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // 檢查訊息來源和類型
+      if (event.data?.type === 'fileSelected' && event.data?.file) {
+        const fileInfo = event.data.file as CurrentFileInfo;
+        setCurrentFile(fileInfo);
+        console.log('[ChatPanel] Received file selection:', fileInfo.path);
+      }
+    };
+
+    // 監聽 postMessage 事件
+    window.addEventListener('message', handleMessage);
+    
+    // 清理監聽器
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   // 檢查認證狀態
   useEffect(() => {
     const checkAuth = async () => {
@@ -110,16 +133,24 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       return;
     }
 
+    // 建立使用者訊息 (保持原始內容)
     const newMessage: Message = {
       id: uuidv4(),
       role: 'user',
       content: inputValue.trim() || `[${t('chat.input.attachment')}]`,
       timestamp: new Date(),
       status: 'sending',
-      attachments: [...attachments]
+      attachments: [...attachments],
+      currentFile: currentFile // 將檔案資訊儲存到訊息中，用於顯示
     };
 
-    const messageContent = inputValue.trim();
+    // 發送給 Claude 的內容包含檔案上下文
+    let messageContent = inputValue.trim();
+    if (currentFile) {
+      // 只在發送給 Claude 時添加檔案上下文，不影響使用者看到的內容
+      const fileContext = `\n\n[Context: Currently viewing ${currentFile.name} at ${currentFile.path}]`;
+      messageContent = messageContent + fileContext;
+    }
     const messageAttachments = [...fileInputRef.current];
     
     // 建立完整的對話歷史（包含新訊息）
@@ -575,6 +606,47 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
 
       {/* Input Area */}
       <div style={inputAreaStyle}>
+        {/* Current File Indicator */}
+        {currentFile && (
+          <div style={{
+            marginBottom: '8px',
+            padding: '6px 12px',
+            backgroundColor: darkMode ? '#1a1a1a' : '#f0f8ff',
+            borderLeft: `3px solid ${darkMode ? '#1890ff' : '#1890ff'}`,
+            borderRadius: '4px',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ 
+              color: darkMode ? '#1890ff' : '#1890ff',
+              fontWeight: '500'
+            }}>
+              📄 {t('chat.fileContext.current')}
+            </span>
+            <span style={{ 
+              color: darkMode ? '#e6e6e6' : '#333',
+              fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+            }}>
+              {currentFile.name}
+            </span>
+            <Button 
+              type="text" 
+              size="small"
+              onClick={() => setCurrentFile(null)}
+              style={{ 
+                padding: '0 4px', 
+                marginLeft: 'auto',
+                color: darkMode ? '#888' : '#666'
+              }}
+              title={t('chat.fileContext.clear')}
+            >
+              ×
+            </Button>
+          </div>
+        )}
+
         {/* Attachments Preview */}
         {attachments.length > 0 && (
           <div style={{ marginBottom: '8px' }}>
@@ -611,29 +683,31 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
             autoSize={{ minRows: 1, maxRows: 4 }}
             style={{ 
               flex: 1,
-              minHeight: '32px', // 設定最小高度防止閃動
               backgroundColor: darkMode ? '#1f1f1f' : '#fff',
               borderColor: darkMode ? '#303030' : '#d9d9d9',
               color: darkMode ? '#fff' : '#000',
-              resize: 'none' // 禁止手動調整大小
+              resize: 'none'
             }}
             disabled={isLoading}
           />
-          <Upload
-            beforeUpload={handleFileUpload}
-            showUploadList={false}
-            multiple
-          >
-            <Button 
-              icon={<PaperClipOutlined />} 
-              disabled={isLoading}
-              style={{
-                backgroundColor: darkMode ? '#262626' : '#f5f5f5',
-                borderColor: darkMode ? '#303030' : '#d9d9d9',
-                color: darkMode ? '#fff' : '#000'
-              }}
-            />
-          </Upload>
+          {/* 檔案上傳功能暫時隱藏 - 詳見 TODO.md Feature #3 */}
+          {false && (
+            <Upload
+              beforeUpload={handleFileUpload}
+              showUploadList={false}
+              multiple
+            >
+              <Button 
+                icon={<PaperClipOutlined />} 
+                disabled={isLoading}
+                style={{
+                  backgroundColor: darkMode ? '#262626' : '#f5f5f5',
+                  borderColor: darkMode ? '#303030' : '#d9d9d9',
+                  color: darkMode ? '#fff' : '#000'
+                }}
+              />
+            </Upload>
+          )}
           <Button 
             type="primary" 
             icon={isLoading ? <CloseOutlined /> : <SendOutlined />}
@@ -643,6 +717,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
             title={isLoading ? t('chat.action.cancel', '取消') : t('chat.action.send', '發送')}
           />
         </Space.Compact>
+        
+        {/* 輸入提示 */}
+        <div style={{
+          marginTop: '4px',
+          fontSize: '11px',
+          color: darkMode ? '#888' : '#999',
+          textAlign: 'center'
+        }}>
+{t('chat.input.shortcut')}
+        </div>
       </div>
     </div>
   );
