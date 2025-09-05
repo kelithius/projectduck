@@ -5,6 +5,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
+    const browserSessionId = searchParams.get('browserSessionId');
 
     if (!projectPath?.trim()) {
       return new Response(
@@ -16,8 +17,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // 使用 Claude SDK 清除 session
-    const success = await claudeSDKService.clearSession(projectPath);
+    // 使用 Claude SDK 清除 session，傳入 browserSessionId
+    const success = await claudeSDKService.clearSession(projectPath, browserSessionId || undefined);
     
     return new Response(
       JSON.stringify({ 

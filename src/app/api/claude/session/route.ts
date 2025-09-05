@@ -6,10 +6,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
+    const browserSessionId = searchParams.get('browserSessionId');
 
     if (projectPath) {
       // 取得特定專案的 session 資訊
-      const session = claudeSDKService.getSession(projectPath);
+      const session = claudeSDKService.getSession(projectPath, browserSessionId || undefined);
       
       if (!session) {
         return new Response(
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectPath, options } = body;
+    const { projectPath, browserSessionId } = body;
 
     if (!projectPath?.trim()) {
       return new Response(
@@ -87,12 +88,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let session = claudeSDKService.getSession(projectPath);
+    let session = claudeSDKService.getSession(projectPath, browserSessionId);
     
     if (!session) {
       // 通過 sessionManager 建立新的 session
       const { sessionManager } = await import('@/lib/services/claude/sessionManager');
-      session = sessionManager.switchSession(projectPath, options);
+      session = sessionManager.switchSession(projectPath, browserSessionId);
     }
 
     return new Response(
@@ -128,6 +129,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
+    const browserSessionId = searchParams.get('browserSessionId');
     const action = searchParams.get('action') || 'clear'; // 'clear' or 'remove'
 
     if (!projectPath) {
@@ -144,10 +146,10 @@ export async function DELETE(request: NextRequest) {
     let message = '';
 
     if (action === 'remove') {
-      success = await claudeSDKService.removeSession(projectPath);
+      success = await claudeSDKService.removeSession(projectPath, browserSessionId || undefined);
       message = success ? 'Session removed successfully' : 'Failed to remove session';
     } else {
-      success = await claudeSDKService.clearSession(projectPath);
+      success = await claudeSDKService.clearSession(projectPath, browserSessionId || undefined);
       message = success ? 'Session cleared successfully' : 'Failed to clear session';
     }
 
@@ -175,7 +177,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectPath, permissionMode, options } = body;
+    const { projectPath, browserSessionId, permissionMode, options } = body;
 
     if (!projectPath?.trim()) {
       return new Response(
@@ -187,7 +189,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const session = claudeSDKService.getSession(projectPath);
+    const session = claudeSDKService.getSession(projectPath, browserSessionId);
     if (!session) {
       return new Response(
         JSON.stringify({ success: false, error: 'Session not found' }),
@@ -200,7 +202,7 @@ export async function PATCH(request: NextRequest) {
 
     // 更新權限模式
     if (permissionMode) {
-      const success = await claudeSDKService.setPermissionMode(projectPath, permissionMode);
+      const success = await claudeSDKService.setPermissionMode(projectPath, permissionMode, browserSessionId);
       if (!success) {
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to set permission mode' }),

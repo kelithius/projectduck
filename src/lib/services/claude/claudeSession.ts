@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { type Query, type SDKMessage, type SDKUserMessage, type PermissionMode } from '@anthropic-ai/claude-code';
+import { type Query, type SDKMessage, type PermissionMode } from '@anthropic-ai/claude-code';
 import { Message, FileAttachment } from '@/lib/types/chat';
 
 export interface ClaudeSessionOptions {
@@ -151,7 +151,7 @@ export class ClaudeSession {
       case 'assistant':
         if (sdkMessage.message.content) {
           const content = Array.isArray(sdkMessage.message.content) 
-            ? sdkMessage.message.content.map(c => 
+            ? sdkMessage.message.content.map((c: string | { type: string; text: string }) => 
                 typeof c === 'string' ? c : c.type === 'text' ? c.text : ''
               ).join('')
             : typeof sdkMessage.message.content === 'string' 
@@ -166,7 +166,7 @@ export class ClaudeSession {
             status: 'sent'
           };
         }
-        break;
+        return null;
         
       case 'result':
         if (sdkMessage.subtype === 'success') {
@@ -241,14 +241,14 @@ export class ClaudeSession {
     };
   }
 
-  public static fromJSON(data: any): ClaudeSession {
+  public static fromJSON(data: { projectPath: string; options?: ClaudeSessionOptions; messages?: Message[]; [key: string]: unknown }): ClaudeSession {
     const session = new ClaudeSession({
       projectPath: data.projectPath,
       ...data.options
     });
     
-    session.sessionId = data.sessionId;
-    session.messageHistory = data.messageHistory || [];
+    session.sessionId = data.sessionId as string;
+    session.messageHistory = (data.messageHistory as Message[]) || [];
     session.isActive = false; // 重新載入時不會是 active 狀態
     
     return session;

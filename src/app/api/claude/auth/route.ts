@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { claudeSDKService } from '@/lib/services/claude/claudeSDKService';
 
 export async function GET() {
@@ -45,11 +44,20 @@ export async function POST() {
         { headers: { 'Content-Type': 'application/json' } }
       );
     } else {
+      const isVertexMode = process.env.CLAUDE_CODE_USE_VERTEX === '1';
+      
       return new Response(
         JSON.stringify({
           success: false,
           error: 'Claude Code authentication required',
-          instructions: [
+          mode: isVertexMode ? 'vertex' : 'standard',
+          instructions: isVertexMode ? [
+            '1. Ensure GOOGLE_APPLICATION_CREDENTIALS is set to your service account key path',
+            '2. Ensure ANTHROPIC_VERTEX_PROJECT_ID is set to your GCP project ID',
+            '3. Ensure CLAUDE_CODE_USE_VERTEX=1 is set',
+            '4. Verify your service account has Vertex AI access',
+            '5. Refresh this page'
+          ] : [
             '1. Open your terminal',
             '2. Run: claude login',
             '3. Follow the authentication process',

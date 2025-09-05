@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
 import { claudeSDKService } from '@/lib/services/claude/claudeSDKService';
-import type { SDKMessage } from '@anthropic-ai/claude-code';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const message = formData.get('message') as string;
     const projectPath = formData.get('projectPath') as string;
+    const browserSessionId = formData.get('browserSessionId') as string;
     const attachmentCount = parseInt(formData.get('attachmentCount') as string || '0');
 
     if (!message?.trim()) {
@@ -52,16 +52,16 @@ export async function POST(request: NextRequest) {
               message: 'Request cancelled by user',
               cancelled: true 
             });
-          } catch (e) {
+          } catch {
             // 如果無法發送事件（連接已關閉），直接忽略
           }
-          claudeSDKService.interruptQuery(projectPath);
+          claudeSDKService.interruptQuery(projectPath, browserSessionId);
           controller.close();
         };
         
         request.signal?.addEventListener('abort', abortHandler);
         
-        const sendEvent = (eventType: string, data: any) => {
+        const sendEvent = (eventType: string, data: unknown) => {
           const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(message));
         };
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
           const queryResult = await claudeSDKService.startQuery({
             prompt: message,
             projectPath,
+            browserSessionId,
             attachments,
             permissionMode: 'default',
             allowedTools: ['Read', 'Write', 'Edit', 'Bash'],
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
       cancel() {
         console.log('Stream cancelled');
         // 嘗試中斷查詢
-        claudeSDKService.interruptQuery(projectPath);
+        claudeSDKService.interruptQuery(projectPath, browserSessionId);
       }
     });
 
@@ -165,6 +166,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
+    const browserSessionId = searchParams.get('browserSessionId');
 
     if (!projectPath) {
       return new Response(
@@ -176,7 +178,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const success = await claudeSDKService.interruptQuery(projectPath);
+    const success = await claudeSDKService.interruptQuery(projectPath, browserSessionId || undefined);
     
     return new Response(
       JSON.stringify({ 

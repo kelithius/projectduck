@@ -3,6 +3,7 @@ import { Message } from '@/lib/types/chat';
 
 export class SessionManager {
   private sessions: Map<string, ClaudeSession> = new Map();
+  private sessionLastActive: Map<string, number> = new Map();
   private activeSessionId: string | null = null;
   private static instance: SessionManager;
 
@@ -17,11 +18,16 @@ export class SessionManager {
   private constructor() {
     // 從 localStorage 恢復 sessions（如果在瀏覽器環境）
     this.loadSessionsFromStorage();
+    
+    // 每 30 分鐘清理一次非活躍的 session
+    setInterval(() => {
+      this.cleanupInactiveSessions();
+    }, 30 * 60 * 1000);
   }
 
-  public createSession(projectPath: string, options?: Partial<ClaudeSessionOptions>): ClaudeSession {
+  public createSession(projectPath: string, browserSessionId?: string, options?: Partial<ClaudeSessionOptions>): ClaudeSession {
     // 使用專案路徑作為唯一識別碼
-    const sessionKey = this.normalizeProjectPath(projectPath);
+    const sessionKey = this.normalizeProjectPath(projectPath, browserSessionId);
     
     // 如果已有相同專案的 session，返回現有的
     if (this.sessions.has(sessionKey)) {
@@ -38,6 +44,7 @@ export class SessionManager {
 
     const session = new ClaudeSession(sessionOptions);
     this.sessions.set(sessionKey, session);
+    this.sessionLastActive.set(sessionKey, Date.now());
     
     // 儲存到 localStorage
     this.saveSessionsToStorage();
@@ -45,19 +52,21 @@ export class SessionManager {
     return session;
   }
 
-  public getSession(projectPath: string): ClaudeSession | null {
-    const sessionKey = this.normalizeProjectPath(projectPath);
+  public getSession(projectPath: string, browserSessionId?: string): ClaudeSession | null {
+    const sessionKey = this.normalizeProjectPath(projectPath, browserSessionId);
     return this.sessions.get(sessionKey) || null;
   }
 
-  public switchSession(projectPath: string): ClaudeSession {
-    const sessionKey = this.normalizeProjectPath(projectPath);
+  public switchSession(projectPath: string, browserSessionId?: string): ClaudeSession {
+    const sessionKey = this.normalizeProjectPath(projectPath, browserSessionId);
     let session = this.sessions.get(sessionKey);
 
     if (!session) {
-      session = this.createSession(projectPath);
+      session = this.createSession(projectPath, browserSessionId);
     }
 
+    // 更新活躍時間
+    this.sessionLastActive.set(sessionKey, Date.now());
     this.activeSessionId = sessionKey;
     return session;
   }
@@ -74,14 +83,14 @@ export class SessionManager {
   }
 
   public getAllSessions(): Array<{ projectPath: string; session: ClaudeSession }> {
-    return Array.from(this.sessions.entries()).map(([key, session]) => ({
+    return Array.from(this.sessions.entries()).map(([, session]) => ({
       projectPath: session.getProjectPath(),
       session
     }));
   }
 
-  public async clearSession(projectPath: string): Promise<void> {
-    const sessionKey = this.normalizeProjectPath(projectPath);
+  public async clearSession(projectPath: string, browserSessionId?: string): Promise<void> {
+    const sessionKey = this.normalizeProjectPath(projectPath, browserSessionId);
     const session = this.sessions.get(sessionKey);
     
     if (session) {
@@ -94,8 +103,8 @@ export class SessionManager {
     }
   }
 
-  public async removeSession(projectPath: string): Promise<void> {
-    const sessionKey = this.normalizeProjectPath(projectPath);
+  public async removeSession(projectPath: string, browserSessionId?: string): Promise<void> {
+    const sessionKey = this.normalizeProjectPath(projectPath, browserSessionId);
     const session = this.sessions.get(sessionKey);
     
     if (session) {
@@ -175,9 +184,43 @@ export class SessionManager {
     return results;
   }
 
-  private normalizeProjectPath(projectPath: string): string {
+  // 清理非活躍的 session (超過 1 小時未使用)
+  private cleanupInactiveSessions(): void {
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000; // 1 小時
+    
+    const inactiveKeys: string[] = [];
+    
+    for (const [sessionKey, lastActive] of this.sessionLastActive.entries()) {
+      if (now - lastActive > oneHour) {
+        inactiveKeys.push(sessionKey);
+      }
+    }
+    
+    for (const sessionKey of inactiveKeys) {
+      const session = this.sessions.get(sessionKey);
+      if (session) {
+        console.log(`[SessionManager] Cleaning up inactive session: ${sessionKey}`);
+        session.interrupt().catch(() => {}); // 嘗試中斷但不等待
+        this.sessions.delete(sessionKey);
+        this.sessionLastActive.delete(sessionKey);
+        
+        if (this.activeSessionId === sessionKey) {
+          this.activeSessionId = null;
+        }
+      }
+    }
+    
+    if (inactiveKeys.length > 0) {
+      console.log(`[SessionManager] Cleaned up ${inactiveKeys.length} inactive sessions`);
+    }
+  }
+
+  private normalizeProjectPath(projectPath: string, browserSessionId?: string): string {
     // 標準化專案路徑，移除末尾斜槓並轉換為絕對路徑
-    return projectPath.replace(/\/+$/, '').toLowerCase();
+    const normalizedPath = projectPath.replace(/\/+$/, '').toLowerCase();
+    // 如果有瀏覽器 session ID，加入作為區隔符
+    return browserSessionId ? `${normalizedPath}#${browserSessionId}` : normalizedPath;
   }
 
   private loadSessionsFromStorage(): void {
@@ -192,7 +235,7 @@ export class SessionManager {
         if (data.sessions) {
           for (const [key, sessionData] of Object.entries(data.sessions)) {
             try {
-              const session = ClaudeSession.fromJSON(sessionData);
+              const session = ClaudeSession.fromJSON(sessionData as Parameters<typeof ClaudeSession.fromJSON>[0]);
               this.sessions.set(key, session);
             } catch (error) {
               console.warn(`Failed to restore session ${key}:`, error);
@@ -271,7 +314,7 @@ export class SessionManager {
         // 匯入新 sessions
         for (const [key, sessionData] of Object.entries(data.sessions)) {
           try {
-            const session = ClaudeSession.fromJSON(sessionData);
+            const session = ClaudeSession.fromJSON(sessionData as Parameters<typeof ClaudeSession.fromJSON>[0]);
             this.sessions.set(key, session);
           } catch (error) {
             console.warn(`Failed to import session ${key}:`, error);

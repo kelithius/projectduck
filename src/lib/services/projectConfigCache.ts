@@ -19,7 +19,30 @@ class ProjectConfigCache {
   private isInitialized = false;
 
   constructor() {
-    this.configPath = join(process.cwd(), 'projects.json');
+    this.configPath = this.resolveConfigPath();
+  }
+
+  /**
+   * 解析配置檔案路徑
+   * 優先順序：環境變數 > 預設值
+   */
+  private resolveConfigPath(): string {
+    const cwd = process.cwd();
+    
+    // 1. 檢查環境變數
+    const envConfigPath = process.env.PROJECTS_CONFIG_PATH || process.env.PROJECTS_CONFIG;
+    if (envConfigPath) {
+      const resolvedPath = envConfigPath.startsWith('/') 
+        ? envConfigPath 
+        : join(cwd, envConfigPath);
+      console.log('[ProjectConfigCache] Using environment config:', resolvedPath);
+      return resolvedPath;
+    }
+    
+    // 2. 預設值
+    const defaultPath = join(cwd, 'projects.json');
+    console.log('[ProjectConfigCache] Using default config:', defaultPath);
+    return defaultPath;
   }
 
   /**

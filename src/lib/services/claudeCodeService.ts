@@ -13,40 +13,26 @@ export interface ClaudeCodeResponse {
 // 事件類型定義
 export interface StreamEvent {
   type: 'start' | 'message' | 'complete' | 'error';
-  data: any;
+  data: unknown;
 }
 
 class ClaudeCodeService {
   private authenticated: boolean = false;
   private currentProject: string | null = null;
   private abortController: AbortController | null = null;
+  private browserSessionId: string;
 
-  async getMessageHistory(projectPath: string): Promise<Message[]> {
-    try {
-      const response = await fetch(`/api/claude/history?projectPath=${encodeURIComponent(projectPath)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        console.warn('Failed to load conversation history:', response.statusText);
-        return [];
-      }
-
-      const result = await response.json();
-      return result.success ? result.messages || [] : [];
-    } catch (error) {
-      console.warn('Error loading conversation history:', error);
-      return [];
-    }
+  constructor() {
+    // 每次頁面載入生成新的 session ID
+    this.browserSessionId = crypto.randomUUID();
+    console.log(`[ClaudeCodeService] Generated new browser session ID: ${this.browserSessionId}`);
   }
+
 
   async clearSession(projectPath: string): Promise<boolean> {
     try {
       // 調用後端 API 來清除 Claude SDK session
-      const response = await fetch(`/api/claude/session/clear?projectPath=${encodeURIComponent(projectPath)}`, {
+      const response = await fetch(`/api/claude/session/clear?projectPath=${encodeURIComponent(projectPath)}&browserSessionId=${encodeURIComponent(this.browserSessionId)}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -138,6 +124,7 @@ class ClaudeCodeService {
       // 準備請求資料
       const formData = new FormData();
       formData.append('message', content);
+      formData.append('browserSessionId', this.browserSessionId);
       
       if (projectPath) {
         formData.append('projectPath', projectPath);
@@ -200,6 +187,7 @@ class ClaudeCodeService {
       // 準備請求資料
       const formData = new FormData();
       formData.append('message', content);
+      formData.append('browserSessionId', this.browserSessionId);
       
       if (projectPath) {
         formData.append('projectPath', projectPath);
@@ -328,6 +316,10 @@ class ClaudeCodeService {
 
   getCurrentProject(): string | null {
     return this.currentProject;
+  }
+
+  getBrowserSessionId(): string {
+    return this.browserSessionId;
   }
 
   // 輔助方法：處理檔案上傳
