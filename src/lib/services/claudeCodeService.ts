@@ -12,7 +12,7 @@ export interface ClaudeCodeResponse {
 
 // 事件類型定義
 export interface StreamEvent {
-  type: 'start' | 'message' | 'complete' | 'error';
+  type: 'start' | 'message' | 'complete' | 'error' | 'session';
   data: unknown;
 }
 
