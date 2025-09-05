@@ -351,7 +351,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, selectedFile
     if (parentKey === '') {
       // 添加到根級
       const newNode = fileItemToTreeNode(nodeData);
-      return [...nodes, newNode].sort((a, b) => {
+      return [...nodes, newNode].sort((a: TreeDataNode, b: TreeDataNode) => {
         // 資料夾在前，檔案在後，同類型按字母順序
         const aIsDir = a.data?.type === 'directory';
         const bIsDir = b.data?.type === 'directory';
@@ -363,7 +363,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, selectedFile
     return nodes.map(node => {
       if (node.key === parentKey) {
         const newNode = fileItemToTreeNode(nodeData);
-        const updatedChildren = [...(node.children || []), newNode].sort((a, b) => {
+        const updatedChildren = [...(node.children || []), newNode].sort((a: TreeDataNode, b: TreeDataNode) => {
           const aIsDir = a.data?.type === 'directory';
           const bIsDir = b.data?.type === 'directory';
           if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
@@ -444,17 +444,18 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({ onFileSelect, selectedFile
     let updatedNodes = findAndRemoveNode([...nodes]);
     
     // 如果找到了節點，將其添加到新位置
-    if (nodeToMove && nodeToMove.data) {
+    if (nodeToMove && (nodeToMove as TreeDataNode).data) {
+      const node = nodeToMove as TreeDataNode;
       // 更新節點的 key（如果有重新命名）
       if (newNodeKey) {
         nodeToMove = {
-          ...nodeToMove,
+          ...node,
           key: newNodeKey,
-          title: nodeToMove.data.name
+          title: node.data!.name
         };
       }
       
-      updatedNodes = addNodeToTree(updatedNodes, newParentKey, nodeToMove.data);
+      updatedNodes = addNodeToTree(updatedNodes, newParentKey, node.data!);
     }
     
     return updatedNodes;

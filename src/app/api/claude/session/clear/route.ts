@@ -1,29 +1,23 @@
 import { NextRequest } from 'next/server';
-import { claudeSDKService } from '@/lib/services/claude/claudeSDKService';
 
+// 在新的極簡架構中，不需要清除 session
+// 每個分頁/重新整理都會自動創建新的 session
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
-    const browserSessionId = searchParams.get('browserSessionId');
+    const clientSessionId = searchParams.get('clientSessionId');
 
-    if (!projectPath?.trim()) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Project path is required' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // 使用 Claude SDK 清除 session，傳入 browserSessionId
-    const success = await claudeSDKService.clearSession(projectPath, browserSessionId || undefined);
+    console.log('[Clear Session API] Called with simplified architecture');
+    console.log('[Clear Session API] Project:', projectPath);
+    console.log('[Clear Session API] Client Session ID:', clientSessionId);
+    console.log('[Clear Session API] No action needed - sessions are automatically isolated');
     
+    // 在新架構中，每個分頁都是獨立的，不需要清除
     return new Response(
       JSON.stringify({ 
-        success,
-        message: success ? 'Session cleared successfully' : 'Failed to clear session'
+        success: true,
+        message: 'Session isolation is automatic in new architecture'
       }),
       { 
         headers: { 'Content-Type': 'application/json' }
@@ -31,11 +25,11 @@ export async function DELETE(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Clear session API error:', error);
+    console.error('[Clear Session API] Error:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to clear session'
+        error: error instanceof Error ? error.message : 'Failed to process request'
       }),
       { 
         status: 500,

@@ -5,7 +5,7 @@ import { FileAttachment } from '@/lib/types/chat';
 export interface SimplifiedQueryOptions {
   prompt: string;
   projectPath: string;
-  claudeSessionId?: string; // Claude SDK 生成的真實 session ID，用於 resume
+  clientSessionId?: string; // 用於 resume 的 session ID
   attachments?: File[];
   permissionMode?: PermissionMode;
   allowedTools?: string[];
@@ -15,7 +15,6 @@ export interface SimplifiedQueryOptions {
 export interface QueryResult {
   success: boolean;
   queryGenerator?: Query;
-  sessionId?: string; // Claude SDK 生成的 session ID
   error?: string;
 }
 
@@ -39,9 +38,7 @@ export class SimplifiedClaudeService {
     return SimplifiedClaudeService.instance;
   }
 
-  private constructor() {
-    console.log('[SimplifiedClaudeService] Single service instance for all tabs');
-  }
+  private constructor() {}
 
   /**
    * 啟動查詢 - 極簡版本
@@ -50,7 +47,7 @@ export class SimplifiedClaudeService {
     const { 
       prompt, 
       projectPath, 
-      claudeSessionId,
+      clientSessionId,
       attachments, 
       permissionMode = 'default', 
       allowedTools = ['Read', 'Write', 'Edit', 'Bash'],
@@ -59,10 +56,10 @@ export class SimplifiedClaudeService {
 
     try {
       console.log('[SimplifiedClaude] Starting query:', {
-        claudeSessionId: claudeSessionId || 'new-session',
+        clientSessionId: clientSessionId || 'new-session',
         projectPath,
         hasAttachments: !!attachments?.length,
-        resumeMode: !!claudeSessionId
+        resumeMode: !!clientSessionId
       });
 
       // 建構 SDK 選項
@@ -71,8 +68,8 @@ export class SimplifiedClaudeService {
         permissionMode,
         allowedTools,
         maxTurns,
-        // 如果有 claudeSessionId，使用正確的 resume 參數
-        ...(claudeSessionId ? { resume: claudeSessionId } : {}),
+        // 如果有 clientSessionId，使用 resume 機制
+        ...(clientSessionId ? { resumeSessionId: clientSessionId } : {}),
         abortController: new AbortController(),
         // 動態設定 Claude executable 路徑
         ...this.getClaudeExecutablePath()
@@ -88,10 +85,8 @@ export class SimplifiedClaudeService {
       });
 
       // 追蹤運行中的查詢（用於中斷）
-      // 注意：我們現在使用 claudeSessionId，但如果是第一次查詢，我們還不知道 session ID
-      // 這將在 processQuery 方法中解決
-      if (claudeSessionId) {
-        this.runningQueries.set(claudeSessionId, {
+      if (clientSessionId) {
+        this.runningQueries.set(clientSessionId, {
           query: queryGenerator,
           abortController: sdkOptions.abortController!
         });
@@ -133,46 +128,19 @@ export class SimplifiedClaudeService {
   /**
    * 處理查詢結果流
    */
-  public async* processQuery(
-    queryGenerator: Query, 
-    claudeSessionId?: string,
-    onSessionId?: (sessionId: string) => void
-  ): AsyncGenerator<SDKMessage, void, unknown> {
-    let actualSessionId = claudeSessionId;
-    let sessionIdReported = false;
-
+  public async* processQuery(queryGenerator: Query, clientSessionId?: string): AsyncGenerator<SDKMessage, void, unknown> {
     try {
       for await (const message of queryGenerator) {
         console.log('[SimplifiedClaude] SDK Message type:', message.type);
-        
-        // 提取 session ID（通常在第一個 message 中）
-        if (!sessionIdReported && message.session_id) {
-          actualSessionId = message.session_id;
-          sessionIdReported = true;
-          
-          console.log('[SimplifiedClaude] Extracted session ID:', actualSessionId);
-          
-          // 報告 session ID 給呼叫者
-          if (onSessionId) {
-            onSessionId(actualSessionId);
-          }
-          
-          // 如果這是新的 session（第一次查詢），添加到 running queries
-          if (!claudeSessionId && actualSessionId) {
-            console.log('[SimplifiedClaude] Adding new session to running queries:', actualSessionId);
-          }
-        }
-        
         yield message;
       }
     } catch (error) {
       console.error('[SimplifiedClaude] Error in query processing:', error);
       throw error;
     } finally {
-      // 清理運行中的查詢追蹤，使用實際的 session ID
-      if (actualSessionId) {
-        this.runningQueries.delete(actualSessionId);
-        console.log('[SimplifiedClaude] Cleaned up session:', actualSessionId);
+      // 清理運行中的查詢追蹤
+      if (clientSessionId) {
+        this.runningQueries.delete(clientSessionId);
       }
     }
   }
@@ -324,33 +292,7 @@ export class SimplifiedClaudeService {
       queryIds: Array.from(this.runningQueries.keys())
     };
   }
-
-  /**
-   * 取得支援的工具列表
-   */
-  public getSupportedTools(): string[] {
-    return [
-      'Read',
-      'Write',
-      'Edit',
-      'Bash',
-      'Search',
-      'Replace',
-      'Create',
-      'Delete',
-      'Move',
-      'Copy'
-    ];
-  }
-
-  /**
-   * 取得支援的權限模式
-   */
-  public getSupportedPermissionModes(): string[] {
-    return ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
-  }
 }
 
-// 匯出單例實例 (單一服務，但 session ID 由各分頁獨立管理)
-export const claudeSDKService = SimplifiedClaudeService.getInstance();
-export const simplifiedClaudeService = claudeSDKService; // 向後相容
+// 匯出單例實例
+export const simplifiedClaudeService = SimplifiedClaudeService.getInstance();

@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
             stabilityThreshold: 100,
             pollInterval: 50
           },
-          disableGlobbing: true,
           followSymlinks: false
         });
 
@@ -95,7 +94,8 @@ export async function GET(request: NextRequest) {
         });
 
         // 監控錯誤
-        watcher.on('error', (error: Error) => {
+        watcher.on('error', (err: unknown) => {
+          const error = err instanceof Error ? err : new Error(String(err));
           console.error('[FileWatch SSE] Watcher error:', error);
           controller.enqueue(`data: ${JSON.stringify({
             type: 'error',
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
 }
 
 // 清理所有監控器的工具函數（用於程序退出時）
-export function cleanupAllWatchers() {
+function cleanupAllWatchers() {
   console.log('[FileWatch SSE] Cleaning up all watchers...');
   
   for (const [id, watcher] of activeWatchers) {

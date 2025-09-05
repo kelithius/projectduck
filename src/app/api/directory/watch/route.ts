@@ -94,10 +94,11 @@ export async function GET(request: NextRequest) {
         });
 
         // 檔案新增事件
-        watcher.on('add', (addedPath: string, stats?: any) => {
+        watcher.on('add', (addedPath: string, stats?: unknown) => {
           const relativePath = path.relative(fullPath, addedPath);
           console.log('[DirectoryWatch SSE] File added:', relativePath);
           
+          const fileStats = stats as { size?: number; mtime?: Date } | undefined;
           const event: DirectoryWatchEvent = {
             type: 'add',
             path: addedPath,
@@ -105,8 +106,8 @@ export async function GET(request: NextRequest) {
             stats: {
               isFile: true,
               isDirectory: false,
-              size: stats?.size,
-              modified: stats?.mtime?.toISOString()
+              size: fileStats?.size,
+              modified: fileStats?.mtime?.toISOString()
             },
             timestamp: Date.now()
           };
@@ -115,13 +116,14 @@ export async function GET(request: NextRequest) {
         });
 
         // 資料夾新增事件
-        watcher.on('addDir', (addedPath: string, stats?: any) => {
+        watcher.on('addDir', (addedPath: string, stats?: unknown) => {
           const relativePath = path.relative(fullPath, addedPath);
           // 忽略根目錄本身
           if (relativePath === '') return;
           
           console.log('[DirectoryWatch SSE] Directory added:', relativePath);
           
+          const fileStats = stats as { mtime?: Date } | undefined;
           const event: DirectoryWatchEvent = {
             type: 'addDir',
             path: addedPath,
@@ -129,7 +131,7 @@ export async function GET(request: NextRequest) {
             stats: {
               isFile: false,
               isDirectory: true,
-              modified: stats?.mtime?.toISOString()
+              modified: fileStats?.mtime?.toISOString()
             },
             timestamp: Date.now()
           };
@@ -138,10 +140,11 @@ export async function GET(request: NextRequest) {
         });
 
         // 檔案變更事件
-        watcher.on('change', (changedPath: string, stats?: any) => {
+        watcher.on('change', (changedPath: string, stats?: unknown) => {
           const relativePath = path.relative(fullPath, changedPath);
           console.log('[DirectoryWatch SSE] File changed:', relativePath);
           
+          const fileStats = stats as { size?: number; mtime?: Date } | undefined;
           const event: DirectoryWatchEvent = {
             type: 'change',
             path: changedPath,
@@ -149,8 +152,8 @@ export async function GET(request: NextRequest) {
             stats: {
               isFile: true,
               isDirectory: false,
-              size: stats?.size,
-              modified: stats?.mtime?.toISOString()
+              size: fileStats?.size,
+              modified: fileStats?.mtime?.toISOString()
             },
             timestamp: Date.now()
           };
@@ -197,7 +200,8 @@ export async function GET(request: NextRequest) {
         });
 
         // 監控錯誤
-        watcher.on('error', (error: Error) => {
+        watcher.on('error', (err: unknown) => {
+          const error = err instanceof Error ? err : new Error(String(err));
           console.error('[DirectoryWatch SSE] Watcher error:', error);
           
           const event: DirectoryWatchEvent = {
@@ -268,7 +272,7 @@ export async function GET(request: NextRequest) {
 }
 
 // 清理所有監控器的工具函數
-export function cleanupAllDirectoryWatchers() {
+function cleanupAllDirectoryWatchers() {
   console.log('[DirectoryWatch SSE] Cleaning up all directory watchers...');
   
   for (const [id, watcher] of activeWatchers) {

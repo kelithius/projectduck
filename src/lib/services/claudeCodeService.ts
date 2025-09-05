@@ -18,38 +18,19 @@ export interface StreamEvent {
 
 class ClaudeCodeService {
   private authenticated: boolean = false;
-  private currentProject: string | null = null;
   private abortController: AbortController | null = null;
-  private browserSessionId: string;
 
   constructor() {
-    // 每次頁面載入生成新的 session ID
-    this.browserSessionId = crypto.randomUUID();
-    console.log(`[ClaudeCodeService] Generated new browser session ID: ${this.browserSessionId}`);
+    console.log('[ClaudeCodeService] Initialized with new Claude-managed session architecture');
   }
 
 
+
+  // 新的極簡架構下，不需要清除 session，因為每個分頁都是獨立的
   async clearSession(projectPath: string): Promise<boolean> {
-    try {
-      // 調用後端 API 來清除 Claude SDK session
-      const response = await fetch(`/api/claude/session/clear?projectPath=${encodeURIComponent(projectPath)}&browserSessionId=${encodeURIComponent(this.browserSessionId)}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        console.warn('Failed to clear session:', response.statusText);
-        return false;
-      }
-
-      const result = await response.json();
-      return result.success || false;
-    } catch (error) {
-      console.warn('Error clearing session:', error);
-      return false;
-    }
+    console.log('[ClaudeCodeService] Clear session called, but not needed in new architecture');
+    console.log('[ClaudeCodeService] Each tab/reload creates a new independent session');
+    return true; // 總是成功，因為不需要做任何事
   }
 
   async checkAuthentication(): Promise<boolean> {
@@ -90,41 +71,19 @@ class ClaudeCodeService {
     }
   }
 
-  async setWorkingDirectory(projectPath: string): Promise<boolean> {
-    try {
-      const response = await fetch('/api/claude/project', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ projectPath }),
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        this.currentProject = projectPath;
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Failed to set working directory:', error);
-      return false;
-    }
-  }
+  // 在新架構中，projectPath 直接在每次請求中傳遞，不需要全域狀態
+  // async setWorkingDirectory 已經不需要了
 
-  async sendMessage(options: SendMessageOptions): Promise<ClaudeCodeResponse> {
+  async sendMessage(options: SendMessageOptions, claudeSessionId?: string | null): Promise<ClaudeCodeResponse> {
     const { content, attachments, projectPath } = options;
 
     try {
-      // 如果提供了專案路徑且與當前不同，先切換專案
-      if (projectPath && projectPath !== this.currentProject) {
-        await this.setWorkingDirectory(projectPath);
-      }
-
-      // 準備請求資料
+      // 準備請求資料 - 使用新的極簡 API
       const formData = new FormData();
       formData.append('message', content);
-      formData.append('browserSessionId', this.browserSessionId);
+      if (claudeSessionId) {
+        formData.append('clientSessionId', claudeSessionId); // 向後相容：API 還期待 clientSessionId
+      }
       
       if (projectPath) {
         formData.append('projectPath', projectPath);
@@ -141,7 +100,8 @@ class ClaudeCodeService {
       // 建立新的 AbortController
       this.abortController = new AbortController();
 
-      const response = await fetch('/api/claude/chat', {
+      // 使用新的極簡 query API
+      const response = await fetch('/api/claude/query', {
         method: 'POST',
         body: formData,
         signal: this.abortController.signal,
@@ -179,15 +139,18 @@ class ClaudeCodeService {
   // 新增 SSE 事件流處理方法
   async sendMessageWithSSE(
     options: SendMessageOptions,
-    onEvent: (event: StreamEvent) => void
+    onEvent: (event: StreamEvent) => void,
+    claudeSessionId?: string | null
   ): Promise<void> {
     const { content, attachments, projectPath } = options;
 
     try {
-      // 準備請求資料
+      // 準備請求資料 - 使用新的極簡 API
       const formData = new FormData();
       formData.append('message', content);
-      formData.append('browserSessionId', this.browserSessionId);
+      if (claudeSessionId) {
+        formData.append('clientSessionId', claudeSessionId); // 向後相容：API 還期待 clientSessionId
+      }
       
       if (projectPath) {
         formData.append('projectPath', projectPath);
@@ -204,7 +167,8 @@ class ClaudeCodeService {
       // 建立新的 AbortController
       this.abortController = new AbortController();
 
-      const response = await fetch('/api/claude/chat', {
+      // 使用新的極簡 query API
+      const response = await fetch('/api/claude/query', {
         method: 'POST',
         body: formData,
         signal: this.abortController.signal,
@@ -303,10 +267,21 @@ class ClaudeCodeService {
     }
   }
 
-  cancelCurrentRequest(): void {
+  async cancelCurrentRequest(claudeSessionId?: string | null): Promise<void> {
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
+      
+      // 也通過 API 中斷後端查詢
+      if (claudeSessionId) {
+        try {
+          await fetch(`/api/claude/query?clientSessionId=${encodeURIComponent(claudeSessionId)}`, {
+            method: 'DELETE'
+          });
+        } catch (error) {
+          console.warn('[ClaudeCodeService] Failed to interrupt backend query:', error);
+        }
+      }
     }
   }
 
@@ -314,12 +289,14 @@ class ClaudeCodeService {
     return this.authenticated;
   }
 
-  getCurrentProject(): string | null {
-    return this.currentProject;
-  }
+  // getCurrentProject 不再需要，因為 projectPath 現在在每次請求中直接傳遞
 
-  getBrowserSessionId(): string {
-    return this.browserSessionId;
+  // 在新架構中，消息歷史由前端 UI 自己管理，不依賴後端
+  async getMessageHistory(projectPath: string): Promise<Message[]> {
+    console.log('[ClaudeCodeService] Message history requested for:', projectPath);
+    console.log('[ClaudeCodeService] In new architecture, message history is managed by UI state');
+    console.log('[ClaudeCodeService] Claude Code SDK handles conversation context via resume mechanism');
+    return []; // 返回空陣列，讓前端 UI 自己管理消息狀態
   }
 
   // 輔助方法：處理檔案上傳

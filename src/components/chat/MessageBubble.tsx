@@ -10,7 +10,7 @@ import { Message } from '@/lib/types/chat';
 
 export interface ToolActivity {
   toolName: string;
-  toolInput?: any;
+  toolInput?: unknown;
   status: 'running' | 'completed' | 'error';
   timestamp: Date;
 }
@@ -112,7 +112,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code({ node, inline, className, children, ...props }) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          code: (props: any) => {
+            const { node, inline, className, children, ...restProps } = props;
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : '';
             
@@ -127,7 +129,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     borderRadius: '6px',
                     fontSize: '13px'
                   }}
-                  {...props}
+                  {...restProps}
                 >
                   {String(children).replace(/\n$/, '')}
                 </SyntaxHighlighter>
@@ -143,7 +145,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   borderRadius: '3px',
                   fontSize: '0.9em'
                 }}
-                {...props}
+                {...restProps}
               >
                 {children}
               </code>
@@ -241,46 +243,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {children}
             </p>
           ),
-          code: ({ node, inline, className, children, ...props }) => {
-            const match = /language-(\w+)/.exec(className || '');
-            const language = match ? match[1] : '';
-            
-            if (!inline && language) {
-              return (
-                <SyntaxHighlighter
-                  style={darkMode ? tomorrow : prism}
-                  language={language}
-                  PreTag="div"
-                  customStyle={{
-                    margin: '8px 0',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    backgroundColor: darkMode ? '#1e1e1e' : '#f6f8fa',
-                    border: `1px solid ${darkMode ? '#404040' : '#d0d7de'}`,
-                  }}
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, '')}
-                </SyntaxHighlighter>
-              );
-            }
-            
-            return (
-              <code
-                className={className}
-                style={{
-                  backgroundColor: darkMode ? '#2d2d2d' : '#f6f8fa',
-                  color: darkMode ? '#e6e6e6' : '#000',
-                  padding: '2px 4px',
-                  borderRadius: '3px',
-                  fontSize: '13px'
-                }}
-                {...props}
-              >
-                {children}
-              </code>
-            );
-          },
           pre: ({ children }) => (
             <div style={{ marginBottom: '16px' }}>
               <pre 
@@ -307,7 +269,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const renderToolActivities = () => {
-    if (!toolActivities.length) return null;
+    if (!toolActivities || !toolActivities.length) return null;
 
     return (
       <div style={{
@@ -318,9 +280,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         fontSize: '12px',
         opacity: 0.8
       }}>
-        {toolActivities.map((activity, index) => {
-          const isExpanded = expandedTools.has(index);
-          const hasDetails = activity.toolInput && Object.keys(activity.toolInput).length > 0;
+        {(toolActivities as ToolActivity[]).map((activity: ToolActivity, index: number) => {
+          const isExpanded: boolean = expandedTools.has(index);
+          const hasDetails: boolean = Boolean(activity.toolInput && typeof activity.toolInput === 'object' && activity.toolInput !== null && Object.keys(activity.toolInput).length > 0);
+          
+          // Extract file path for display
+          const getFilePathSuffix = (): string => {
+            if (activity.toolInput && 
+                typeof activity.toolInput === 'object' && 
+                activity.toolInput !== null && 
+                'file_path' in activity.toolInput && 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                typeof (activity.toolInput as any).file_path === 'string') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return ` → ${((activity.toolInput as any).file_path as string).split('/').pop()}`;
+            }
+            return '';
+          };
           
           return (
             <div key={index} style={{ margin: '2px 0' }}>
@@ -364,9 +340,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   {activity.status === 'completed' && '✅ '}
                   {activity.status === 'error' && '❌ '}
                   {activity.toolName}
-                  {activity.toolInput && typeof activity.toolInput.file_path === 'string' && 
-                    ` → ${activity.toolInput.file_path.split('/').pop()}`
-                  }
+                  {getFilePathSuffix()}
                 </span>
               </div>
               

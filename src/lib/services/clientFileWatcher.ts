@@ -249,20 +249,11 @@ class ClientFileWatcher {
     };
 
     // SSE 連接錯誤處理
-    eventSource.onerror = (error) => {
+    eventSource.onerror = () => {
       // 只在開發環境記錄詳細錯誤，避免生產環境的噪音
       if (process.env.NODE_ENV === 'development') {
         console.warn(`[ClientFileWatcher] SSE connection lost for ${filePath}`);
       }
-      
-      // 嘗試重連
-      setTimeout(() => {
-        if (this.watchers.has(filePath)) {
-          console.log(`[ClientFileWatcher] Attempting to reconnect ${filePath}`);
-          this.stopWatching(filePath);
-          this.watchFile(filePath, callback);
-        }
-      }, 3000);
     };
 
     // SSE 連接開啟事件
