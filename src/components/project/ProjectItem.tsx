@@ -6,6 +6,7 @@ import { FolderOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { ProjectValidationResult } from '@/lib/types';
 import { useTranslation } from 'react-i18next';
 import styles from '@/styles/project-sidebar.module.css';
+import { useDesignTokens, useThemedStyles } from '@/lib/design/useDesignTokens';
 
 const { Text } = Typography;
 
@@ -25,6 +26,8 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   disabled = false
 }) => {
   const { t } = useTranslation();
+  const tokens = useDesignTokens();
+  const themedStyles = useThemedStyles();
   const [isHovered, setIsHovered] = useState(false);
 
   const getStatusIcon = () => {
@@ -49,14 +52,14 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
     if (!project.isValid) {
       return (
         <div style={containerStyle}>
-          <ExclamationCircleOutlined style={{ ...iconStyle, color: '#ff4d4f' }} />
+          <ExclamationCircleOutlined style={{ ...iconStyle, color: tokens.colors.status.error }} />
         </div>
       );
     } else {
       // 無論選中與否都使用 FolderOutlined，只改變顏色
       const color = isActive 
-        ? (isDark ? '#ffffff' : '#1890ff')  // 選中時的顏色
-        : (isDark ? '#8c8c8c' : '#1890ff'); // 未選中時的顏色
+        ? (isDark ? tokens.colors.text.primary : tokens.semantic.antd.primary)  // 選中時的顏色
+        : (isDark ? tokens.colors.text.secondary : tokens.semantic.antd.primary); // 未選中時的顏色
       return (
         <div style={containerStyle}>
           <FolderOutlined style={{ ...iconStyle, color }} />
@@ -66,15 +69,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   };
 
   const getItemStyle = (): React.CSSProperties => {
-    let backgroundColor = 'transparent';
-
-    if (disabled && !isActive) {
-      backgroundColor = isDark ? '#1a1a1a' : '#f5f5f5';
-    } else if (isActive) {
-      backgroundColor = isDark ? '#177ddc' : '#e6f7ff';
-    } else if (isHovered && !disabled) {
-      backgroundColor = isDark ? '#262626' : '#f5f5f5';
-    }
+    const backgroundColor = themedStyles.projectItemBg(isActive, isHovered && !disabled);
 
     return {
       backgroundColor
@@ -85,10 +80,10 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
     fontSize: '14px',
     fontWeight: isActive ? 600 : 500,
     color: disabled && !isActive
-      ? (isDark ? '#595959' : '#8c8c8c')
+      ? tokens.colors.text.disabled
       : isActive 
-        ? (isDark ? '#ffffff' : '#1890ff')
-        : (isDark ? '#ffffff' : '#000000'),
+        ? (isDark ? tokens.colors.text.primary : tokens.semantic.antd.primary)
+        : tokens.colors.text.primary,
     margin: 0,
     lineHeight: '20px'
   };
@@ -97,7 +92,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
 
   const errorStyle = {
     fontSize: '11px',
-    color: '#ff4d4f',
+    color: tokens.colors.status.error,
     margin: '2px 0 0 0',
     lineHeight: '14px'
   };

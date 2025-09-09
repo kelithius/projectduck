@@ -6,6 +6,7 @@ import { CloseOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProjectSwitch } from '@/lib/hooks/use-project-switch';
 import { ProjectItem } from './ProjectItem';
+import { useDesignTokens, useStyleUtils, useThemedStyles } from '@/lib/design/useDesignTokens';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +22,10 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   isDark
 }) => {
   const { t } = useTranslation();
+  const tokens = useDesignTokens();
+  const styles = useStyleUtils();
+  const themedStyles = useThemedStyles();
+  
   const {
     currentProject,
     projects,
@@ -39,20 +44,19 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     onClose();
   };
 
-
   const drawerStyle = {
-    backgroundColor: isDark ? '#1f1f1f' : '#ffffff',
-    borderRight: `1px solid ${isDark ? '#303030' : '#d9d9d9'}`
+    backgroundColor: tokens.colors.background.primary,
+    borderRight: `1px solid ${tokens.colors.border.secondary}`
   };
 
   const headerStyle = {
-    backgroundColor: isDark ? '#141414' : '#fafafa',
-    borderBottom: `1px solid ${isDark ? '#303030' : '#d9d9d9'}`,
+    backgroundColor: tokens.colors.background.secondary,
+    borderBottom: `1px solid ${tokens.colors.border.secondary}`,
     padding: '16px 24px'
   };
 
   const bodyStyle = {
-    backgroundColor: isDark ? '#1f1f1f' : '#ffffff',
+    backgroundColor: tokens.colors.background.primary,
     padding: '0'
   };
 
@@ -144,10 +148,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                 description={error}
                 type="error"
                 showIcon
-                style={{
-                  backgroundColor: isDark ? '#2a1215' : '#fff2f0',
-                  borderColor: isDark ? '#a61d24' : '#ffccc7'
-                }}
+                style={themedStyles.errorState}
               />
             </div>
           )}

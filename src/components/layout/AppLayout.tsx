@@ -14,6 +14,7 @@ import { ThemeProvider, useTheme } from '@/lib/providers/theme-provider';
 import { ProjectProvider } from '@/lib/providers/project-provider';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ClaudeErrorBoundary } from '@/components/common/ClaudeErrorBoundary';
+import { useDesignTokens, useStyleUtils, useThemedStyles } from '@/lib/design/useDesignTokens';
 
 const ContentViewer = React.lazy(() => 
   import('@/components/contentViewer/ContentViewer').then(module => ({
@@ -34,6 +35,10 @@ const AppLayoutInner: React.FC = () => {
   const { message } = App.useApp();
   const { t } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
+  const tokens = useDesignTokens();
+  const styles = useStyleUtils();
+  const themedStyles = useThemedStyles();
+  
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -44,25 +49,24 @@ const AppLayoutInner: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingFileTree, setIsDraggingFileTree] = useState(false);
 
-  // Simple styles - no need for useMemo for basic objects
+  // 使用設計系統的樣式
   const headerStyle = {
-    backgroundColor: isDark ? '#001529' : '#fff',
-    padding: '0 24px',
-    borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+    backgroundColor: themedStyles.headerBg,
+    padding: `0 ${tokens.spacing.lg}`,
+    borderBottom: `1px solid ${tokens.colors.border.primary}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between'
   };
 
   const contentStyle = {
-    backgroundColor: isDark ? '#141414' : '#fff',
+    backgroundColor: tokens.colors.background.secondary,
     overflow: 'hidden' as const
   };
 
   const sidebarStyle = {
     height: '100%',
-    backgroundColor: isDark ? '#1f1f1f' : '#fafafa',
-    borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+    ...styles.sidebar,
     overflow: 'auto'
   };
 
@@ -423,10 +427,10 @@ const AppLayoutInner: React.FC = () => {
                   transform: 'translateY(-50%)',
                   width: '2px',
                   height: '40px',
-                  backgroundColor: isDark ? '#555' : '#ddd',
-                  borderRadius: '1px',
+                  backgroundColor: themedStyles.dragHandleBg,
+                  borderRadius: tokens.borderRadius.sm,
                   opacity: isDraggingFileTree ? 1 : 0.3,
-                  transition: 'opacity 0.2s ease'
+                  transition: tokens.transitions.fast
                 }}
               />
             </div>
@@ -468,10 +472,10 @@ const AppLayoutInner: React.FC = () => {
                 maxWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
                 height: '100%',
                 overflow: 'hidden',
-                transition: isDragging ? 'none' : 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                transition: isDragging ? 'none' : `width ${tokens.transitions.normal}, min-width ${tokens.transitions.normal}, max-width ${tokens.transitions.normal}`,
                 display: 'flex',
-                backgroundColor: isDark ? '#1f1f1f' : '#fff',
-                borderLeft: chatPanelVisible ? `1px solid ${isDark ? '#303030' : '#f0f0f0'}` : 'none'
+                backgroundColor: tokens.colors.background.primary,
+                borderLeft: chatPanelVisible ? `1px solid ${tokens.colors.border.primary}` : 'none'
               }}
             >
               {/* 拖拽手柄 - 只在可見時顯示 */}
@@ -495,10 +499,10 @@ const AppLayoutInner: React.FC = () => {
                       transform: 'translateY(-50%)',
                       width: '2px',
                       height: '40px',
-                      backgroundColor: isDark ? '#555' : '#ddd',
-                      borderRadius: '1px',
+                      backgroundColor: themedStyles.dragHandleBg,
+                      borderRadius: tokens.borderRadius.sm,
                       opacity: isDragging ? 1 : 0.3,
-                      transition: 'opacity 0.2s ease'
+                      transition: tokens.transitions.fast
                     }}
                   />
                 </div>
@@ -517,7 +521,7 @@ const AppLayoutInner: React.FC = () => {
                       justifyContent: 'center', 
                       alignItems: 'center', 
                       height: '100%',
-                      backgroundColor: isDark ? '#1f1f1f' : '#fff'
+                      backgroundColor: tokens.colors.background.primary
                     }}>
                       <Spin size="large" />
                     </div>
