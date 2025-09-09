@@ -6,27 +6,32 @@ This directory contains all Docker-related files for ProjectDuck deployment.
 
 ```
 docker/
-├── Dockerfile              # Multi-stage Docker build configuration
-├── README.md               # This documentation
-├── entrypoint.sh           # Container startup script
-└── scripts/                # Build and management scripts
-    └── build.sh               # Docker build and test automation
+├── project-duck/                    # Standard ProjectDuck Docker setup
+│   ├── Dockerfile                   # Multi-stage Docker build configuration
+│   ├── README.md                    # This documentation
+│   ├── entrypoint.sh               # Container startup script
+│   └── scripts/                     # Build and management scripts
+│       └── build.sh                    # Docker build and test automation
+└── project-duck-with-claude-code/  # Extended version with Claude Code CLI
+    ├── Dockerfile                   # Extended Docker build configuration
+    └── README.md                    # Claude Code integration documentation
 ```
 
 ## Files Overview
 
-### Build Configuration
+### Standard ProjectDuck (`project-duck/`)
 
 - `Dockerfile` - Multi-stage Docker build with security hardening
+- `entrypoint.sh` - Startup script with configuration handling  
+- `scripts/build.sh` - Docker build and test automation script
 - `../dockerignore` - Files to exclude from build context (in project root)
 
-### Container Runtime
+### Extended Version (`project-duck-with-claude-code/`)
 
-- `entrypoint.sh` - Startup script with configuration handling
+- `Dockerfile` - Extended build adding Claude Code CLI to base image
+- `README.md` - Complete setup and usage guide for the extended version
 
-### Build Tools
-
-- `scripts/build.sh` - Docker build and test automation script
+For Claude Code integration details, see `project-duck-with-claude-code/README.md`.
 
 ## Configuration Requirements
 
@@ -53,8 +58,8 @@ This ensures that misconfigurations are caught early rather than causing runtime
 ### Build and Run
 
 ```bash
-# Build the image
-cd docker/scripts
+# Build the image  
+cd docker/project-duck/scripts
 ./build.sh build
 
 # Create projects.json configuration (REQUIRED)
@@ -249,7 +254,7 @@ The `scripts/build.sh` script provides convenient commands for Docker operations
 
 ```bash
 # Navigate to scripts directory
-cd docker/scripts
+cd docker/project-duck/scripts
 
 # Build the image
 ./build.sh build

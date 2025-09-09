@@ -3,7 +3,7 @@
 # ==============================
 
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -25,7 +25,7 @@ RUN npm run build
 
 # ==============================
 # Production stage
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 # Set working directory
 WORKDIR /app
@@ -55,9 +55,11 @@ RUN mkdir -p /data && chown nextjs:nodejs /data
 
 # Note: projects.json should be mounted as volume, not copied
 # This ensures configuration can be updated without rebuilding image
+# Alternative project configs can be specified via PROJECTS_CONFIG_PATH env var
+# Example: PROJECTS_CONFIG_PATH=projects-prod.json
 
 # Copy entrypoint script
-COPY docker/entrypoint.sh /usr/local/bin/
+COPY docker/project-duck/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Set environment variables
