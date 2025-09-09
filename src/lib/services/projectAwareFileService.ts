@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import mime from 'mime-types';
 import { FileItem } from '@/lib/types';
+import { appConfig } from '@/lib/services/appConfigService';
 
 interface FileContentData {
   path: string;
@@ -192,9 +193,10 @@ export class ProjectAwareFileService {
         throw new Error('Path is not a file');
       }
 
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = appConfig.getMaxFileSize();
+      const maxSizeMB = maxSize / (1024 * 1024);
       if (stats.size > maxSize) {
-        throw new Error('File too large (max 10MB)');
+        throw new Error(`File too large (max ${maxSizeMB}MB)`);
       }
 
       const mimeType = mime.lookup(safePath) || 'text/plain';

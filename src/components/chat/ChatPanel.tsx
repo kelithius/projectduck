@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Input, Button, Space, Upload, Spin, App } from 'antd';
 import { SendOutlined, PaperClipOutlined, RobotOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +33,46 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [toolActivities, setToolActivities] = useState<Map<string, ToolActivity[]>>(new Map());
+  
+  // Tool Activities 記憶體管理配置
+  const MAX_TOOL_ACTIVITIES_SIZE = 50; // 最多保留 50 個訊息的工具活動
+  const CLEANUP_THRESHOLD = 60; // 當超過 60 個時觸發清理
+  
+  // 清理 Tool Activities 記憶體
+  const cleanupToolActivities = useCallback((currentMap: Map<string, ToolActivity[]>) => {
+    if (currentMap.size <= MAX_TOOL_ACTIVITIES_SIZE) {
+      return currentMap;
+    }
+    
+    // 轉換為陣列並按時間戳排序 (保留最新的)
+    const entries = Array.from(currentMap.entries());
+    const sortedEntries = entries.sort((a, b) => {
+      const aLatestTime = Math.max(...a[1].map(activity => activity.timestamp.getTime()));
+      const bLatestTime = Math.max(...b[1].map(activity => activity.timestamp.getTime()));
+      return bLatestTime - aLatestTime; // 降序，最新的在前面
+    });
+    
+    // 只保留最新的 MAX_TOOL_ACTIVITIES_SIZE 個
+    const keptEntries = sortedEntries.slice(0, MAX_TOOL_ACTIVITIES_SIZE);
+    const cleanedMap = new Map(keptEntries);
+    
+    console.log(`[ChatPanel] Cleaned tool activities: ${currentMap.size} → ${cleanedMap.size}`);
+    return cleanedMap;
+  }, [MAX_TOOL_ACTIVITIES_SIZE]);
+  
+  // 安全的 Tool Activities 更新函數 (帶記憶體管理)
+  const updateToolActivities = useCallback((updater: (prev: Map<string, ToolActivity[]>) => Map<string, ToolActivity[]>) => {
+    setToolActivities(prev => {
+      const updated = updater(prev);
+      
+      // 檢查是否需要清理
+      if (updated.size >= CLEANUP_THRESHOLD) {
+        return cleanupToolActivities(updated);
+      }
+      
+      return updated;
+    });
+  }, [CLEANUP_THRESHOLD, cleanupToolActivities]);
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>('');
   const [currentFile, setCurrentFile] = useState<CurrentFileInfo | null>(null);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false); // 追蹤是否已發送第一次訊息
@@ -108,7 +148,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       setCurrentAssistantMessage('');
       setIsStreaming(false);
       setIsThinking(false);
-      setToolActivities(new Map());
+      setToolActivities(new Map()); // 清空操作，不需要記憶體管理
       setCurrentAssistantMessageId('');
     };
 
@@ -288,8 +328,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
               }
               
               // 只有非取消錯誤才記錄和顯示
-              console.error('Query error:', errorMsg);
-              message.error(t('chat.error.query') + ': ' + errorMsg);
+              console.error('[ChatPanel] Query failed:', {
+                error: errorMsg,
+                sessionId: claudeSessionRef.current,
+                timestamp: new Date().toISOString()
+              });
+              message.error(`${t('chat.error.query')}: ${errorMsg || '未知錯誤'}`);
               break;
           }
         },
@@ -297,7 +341,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       );
 
     } catch (error) {
-      console.error('Send message error:', error);
+      console.error('[ChatPanel] Message send failed:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionId: claudeSessionRef.current,
+        messageLength: messageContent.length,
+        timestamp: new Date().toISOString()
+      });
       setIsStreaming(false);
       setIsThinking(false);
       setMessages(prev => 
@@ -305,7 +355,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           msg.id === newMessage.id ? { ...msg, status: 'error' as const } : msg
         )
       );
-      message.error(error instanceof Error ? error.message : t('chat.error.send'));
+      
+      const errorMessage = error instanceof Error 
+        ? `發送失敗: ${error.message}` 
+        : `發送失敗: ${t('chat.error.send')}`;
+      message.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -349,7 +403,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
     setIsThinking(false);
     setCurrentAssistantMessage('');
     setCurrentAssistantMessageId('');
-    setToolActivities(new Map());
+    setToolActivities(new Map()); // 清空操作，不需要記憶體管理
   };
 
   // 處理 SDK 訊息
@@ -368,7 +422,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
                 timestamp: new Date()
               };
               
-              setToolActivities(prev => {
+              updateToolActivities(prev => {
                 const current = prev.get(assistantMessageId) || [];
                 const updated = new Map(prev);
                 updated.set(assistantMessageId, [...current, newActivity]);
@@ -394,7 +448,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
         if (sdkMessage.message.content && Array.isArray(sdkMessage.message.content)) {
           for (const contentItem of sdkMessage.message.content) {
             if (typeof contentItem === 'object' && contentItem.type === 'tool_result') {
-              setToolActivities(prev => {
+              updateToolActivities(prev => {
                 const current = prev.get(assistantMessageId) || [];
                 const updated = new Map(prev);
                 const newActivities = current.map(activity => {
@@ -434,7 +488,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           setMessages(prev => [...prev, errorMessage]);
           
           // 將進行中的工具活動標記為錯誤
-          setToolActivities(prev => {
+          updateToolActivities(prev => {
             const current = prev.get(assistantMessageId) || [];
             const updated = new Map(prev);
             const newActivities = current.map(activity => {

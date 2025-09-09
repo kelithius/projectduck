@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Message, SendMessageOptions, FileAttachment } from '@/lib/types/chat';
+import { appConfig } from '@/lib/services/appConfigService';
 
 export interface ClaudeCodeResponse {
   success: boolean;
@@ -46,7 +47,11 @@ class ClaudeCodeService {
       this.authenticated = result.authenticated || false;
       return this.authenticated;
     } catch (error) {
-      console.error('Failed to check authentication:', error);
+      console.error('[ClaudeCodeService] Authentication check failed:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
       this.authenticated = false;
       return false;
     }
@@ -128,7 +133,12 @@ class ClaudeCodeService {
         };
       }
       
-      console.error('Failed to send message:', error);
+      console.error('[ClaudeCodeService] Send message failed:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        claudeSessionId: claudeSessionId,
+        timestamp: new Date().toISOString()
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -189,13 +199,23 @@ class ClaudeCodeService {
 
       try {
         let buffer = '';
+        const MAX_BUFFER_SIZE = appConfig.getSSEBufferSize(); // 可配置的 SSE buffer 大小
 
         while (true) {
           const { done, value } = await reader.read();
           
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          
+          // Check buffer size limit to prevent memory leaks
+          if (buffer.length + chunk.length > MAX_BUFFER_SIZE) {
+            const bufferSizeMB = MAX_BUFFER_SIZE / (1024 * 1024);
+            console.error(`SSE buffer size exceeded limit (${bufferSizeMB}MB), dropping connection`);
+            throw new Error(`SSE buffer size exceeded maximum limit (${bufferSizeMB}MB)`);
+          }
+
+          buffer += chunk;
           
           // 處理完整的事件
           const lines = buffer.split('\n');

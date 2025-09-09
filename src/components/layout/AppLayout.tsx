@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { Layout, Typography, Spin, Space, App, Button } from 'antd';
 import { BulbOutlined, MoonOutlined, MessageOutlined, SunOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,8 @@ import { FileItem } from '@/lib/types';
 import apiService from '@/lib/services/api';
 import { ThemeProvider, useTheme } from '@/lib/providers/theme-provider';
 import { ProjectProvider } from '@/lib/providers/project-provider';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { ClaudeErrorBoundary } from '@/components/common/ClaudeErrorBoundary';
 
 const ContentViewer = React.lazy(() => 
   import('@/components/contentViewer/ContentViewer').then(module => ({
@@ -41,6 +43,28 @@ const AppLayoutInner: React.FC = () => {
   const [fileTreeWidth, setFileTreeWidth] = useState(260); // FileTree 預設寬度
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingFileTree, setIsDraggingFileTree] = useState(false);
+
+  // Simple styles - no need for useMemo for basic objects
+  const headerStyle = {
+    backgroundColor: isDark ? '#001529' : '#fff',
+    padding: '0 24px',
+    borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  };
+
+  const contentStyle = {
+    backgroundColor: isDark ? '#141414' : '#fff',
+    overflow: 'hidden' as const
+  };
+
+  const sidebarStyle = {
+    height: '100%',
+    backgroundColor: isDark ? '#1f1f1f' : '#fafafa',
+    borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+    overflow: 'auto'
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -87,6 +111,23 @@ const AppLayoutInner: React.FC = () => {
     };
   }, [message, t]);
 
+  // 清理拖拽相關資源
+  useEffect(() => {
+    return () => {
+      // 清理所有未完成的 RAF
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      if (rafIdChatRef.current) {
+        cancelAnimationFrame(rafIdChatRef.current);
+      }
+      
+      // 重置拖拽狀態
+      isDraggingRef.current = false;
+      isDraggingFileTreeRef.current = false;
+    };
+  }, []);
+
   const handleFileSelect = (file: FileItem | null) => {
     setSelectedFile(file);
     
@@ -124,21 +165,48 @@ const AppLayoutInner: React.FC = () => {
     setChatPanelVisible(!chatPanelVisible);
   };
 
-  // ChatPanel 拖拽處理邏輯
-  const handleChatPanelMouseDown = (e: React.MouseEvent) => {
+  // ChatPanel 拖拽處理邏輯 - 優化版本
+  const isDraggingRef = useRef(false);
+  const rafIdChatRef = useRef<number>();
+
+  const handleChatPanelMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
+    isDraggingRef.current = true;
+    
+    const startX = e.clientX;
+    const startWidth = chatPanelWidth;
     
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = window.innerWidth - e.clientX;
-      const minWidth = 300;
-      const maxWidth = Math.min(800, window.innerWidth - 400); // 最大寬度不超過視窗寬度減去左側最小空間
+      if (!isDraggingRef.current) return;
       
-      setChatPanelWidth(Math.min(Math.max(newWidth, minWidth), maxWidth));
+      // 正確計算新寬度：Chat Panel 從右側拖拽，所以是反向計算
+      const deltaX = startX - e.clientX; // 注意：反向計算
+      const newWidth = startWidth + deltaX;
+      const minWidth = 300;
+      const maxWidth = Math.min(800, window.innerWidth - 400);
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      
+      // 使用 RAF throttle 減少狀態更新頻率
+      if (rafIdChatRef.current) {
+        cancelAnimationFrame(rafIdChatRef.current);
+      }
+      
+      rafIdChatRef.current = requestAnimationFrame(() => {
+        setChatPanelWidth(clampedWidth);
+        rafIdChatRef.current = undefined; // 確保清理
+      });
     };
     
     const handleMouseUp = () => {
+      isDraggingRef.current = false;
       setIsDragging(false);
+      
+      if (rafIdChatRef.current) {
+        cancelAnimationFrame(rafIdChatRef.current);
+        rafIdChatRef.current = undefined;
+      }
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
@@ -149,23 +217,51 @@ const AppLayoutInner: React.FC = () => {
     document.addEventListener('mouseup', handleMouseUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  };
+  }, [chatPanelWidth]);
 
-  // FileTree 拖拽處理邏輯
-  const handleFileTreeMouseDown = (e: React.MouseEvent) => {
+  // 使用 ref 追蹤拖拽狀態，避免每次 mousemove 都重新渲染
+  const isDraggingFileTreeRef = useRef(false);
+  const rafIdRef = useRef<number>();
+
+  // FileTree 拖拽處理邏輯 - 修復版本
+  const handleFileTreeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsDraggingFileTree(true);
+    isDraggingFileTreeRef.current = true;
+    
+    const startX = e.clientX;
+    const startWidth = fileTreeWidth;
     
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = e.clientX;
-      const minWidth = 200;
-      const maxWidth = Math.min(500, window.innerWidth - 600); // 確保右側有足夠空間
+      if (!isDraggingFileTreeRef.current) return;
       
-      setFileTreeWidth(Math.min(Math.max(newWidth, minWidth), maxWidth));
+      // 正確計算新寬度：起始寬度 + 滑鼠移動距離
+      const deltaX = e.clientX - startX;
+      const newWidth = startWidth + deltaX;
+      const minWidth = 200;
+      const maxWidth = Math.min(500, window.innerWidth - 600);
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      
+      // 使用 RAF throttle 減少狀態更新頻率
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      
+      rafIdRef.current = requestAnimationFrame(() => {
+        setFileTreeWidth(clampedWidth);
+        rafIdRef.current = undefined; // 確保清理
+      });
     };
     
     const handleMouseUp = () => {
+      isDraggingFileTreeRef.current = false;
       setIsDraggingFileTree(false);
+      
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = undefined;
+      }
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
@@ -176,7 +272,7 @@ const AppLayoutInner: React.FC = () => {
     document.addEventListener('mouseup', handleMouseUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  };
+  }, [fileTreeWidth]);
 
   if (!mounted) {
     return (
@@ -205,27 +301,6 @@ const AppLayoutInner: React.FC = () => {
       </Layout>
     );
   }
-
-  const headerStyle = {
-    backgroundColor: isDark ? '#001529' : '#fff',
-    padding: '0 24px',
-    borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  };
-
-  const contentStyle = {
-    backgroundColor: isDark ? '#141414' : '#fff',
-    overflow: 'hidden' as const
-  };
-
-  const sidebarStyle = {
-    height: '100%',
-    backgroundColor: isDark ? '#1f1f1f' : '#fafafa',
-    borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
-    overflow: 'auto'
-  };
 
   return (
     <Layout style={{ height: '100vh' }}>
@@ -322,7 +397,9 @@ const AppLayoutInner: React.FC = () => {
               borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
               overflow: 'hidden'
             }}>
-              <FileTree onFileSelect={handleFileSelect} selectedFile={selectedFile} darkMode={isDark} />
+              <ErrorBoundary>
+                <FileTree onFileSelect={handleFileSelect} selectedFile={selectedFile} darkMode={isDark} />
+              </ErrorBoundary>
             </div>
             
             {/* 拖拽手柄 */}
@@ -367,18 +444,20 @@ const AppLayoutInner: React.FC = () => {
               height: '100%',
               overflow: 'hidden'
             }}>
-              <Suspense fallback={
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  height: '100%' 
-                }}>
-                  <Spin size="large" />
-                </div>
-              }>
-                <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    height: '100%' 
+                  }}>
+                    <Spin size="large" />
+                  </div>
+                }>
+                  <ContentViewer selectedFile={selectedFile} darkMode={isDark} />
+                </Suspense>
+              </ErrorBoundary>
             </div>
 
             {/* Chat Panel - Always rendered for state persistence */}
@@ -431,19 +510,21 @@ const AppLayoutInner: React.FC = () => {
                 overflow: 'hidden',
                 display: chatPanelVisible ? 'block' : 'none' // 使用 display 控制可見性而非條件渲染
               }}>
-                <Suspense fallback={
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    height: '100%',
-                    backgroundColor: isDark ? '#1f1f1f' : '#fff'
-                  }}>
-                    <Spin size="large" />
-                  </div>
-                }>
-                  <ChatPanel darkMode={isDark} />
-                </Suspense>
+                <ClaudeErrorBoundary onRetry={() => window.location.reload()}>
+                  <Suspense fallback={
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      height: '100%',
+                      backgroundColor: isDark ? '#1f1f1f' : '#fff'
+                    }}>
+                      <Spin size="large" />
+                    </div>
+                  }>
+                    <ChatPanel darkMode={isDark} />
+                  </Suspense>
+                </ClaudeErrorBoundary>
               </div>
             </div>
           </div>

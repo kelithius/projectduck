@@ -3,6 +3,7 @@ import path from 'path';
 import mime from 'mime-types';
 import { SecurityService } from './securityService';
 import { FileItem } from '@/lib/types';
+import { appConfig } from '@/lib/services/appConfigService';
 
 interface FileContentData {
   path: string;
@@ -90,9 +91,10 @@ export class FileService {
         throw new Error('Path is not a file');
       }
 
-      const maxSize = 10 * 1024 * 1024;
+      const maxSize = appConfig.getMaxFileSize();
+      const maxSizeMB = maxSize / (1024 * 1024);
       if (stats.size > maxSize) {
-        throw new Error('File too large (max 10MB)');
+        throw new Error(`File too large (max ${maxSizeMB}MB)`);
       }
 
       const mimeType = mime.lookup(safePath) || 'text/plain';
