@@ -142,12 +142,35 @@ npm run lint
 ## ⚙️ Configuration
 
 ### Environment Variables
-Configure in `next.config.ts`:
-```typescript
-env: {
-  BASE_PATH: process.env.BASE_PATH || '/path/to/your/files',
-}
+
+Copy `.env.example` to `.env.local` and configure as needed:
+
+```bash
+# Claude Code Integration (default: false)
+# Set to 'true' to enable Claude Code features (chat panel, AI assistance)
+ENABLE_CLAUDE_CODE=false
+
+# File browsing configuration
+BASE_PATH=/path/to/your/files
+
+# Claude Code settings (when enabled)
+CLAUDE_SSE_BUFFER_SIZE_MB=5
+CLAUDE_MAX_RESPONSE_SIZE_MB=10
+CLAUDE_CONNECTION_TIMEOUT_MS=30000
+
+# File processing
+MAX_FILE_SIZE_MB=10
+MAX_PREVIEW_SIZE_MB=5
+
+# Security
+ENABLE_PATH_VALIDATION=true
+
+# Performance
+ENABLE_VIRTUALIZATION=false
+VIRTUALIZATION_THRESHOLD=1000
 ```
+
+See `.env.example` for all available configuration options.
 
 ### Internationalization Settings
 Configure languages in `next-i18next.config.js`:
@@ -374,6 +397,9 @@ docker run -d -p 3000:3000 my-projectduck
 | `PORT` | `3000` | Port number for the server |
 | `NODE_ENV` | `production` | Node.js environment |
 | `HOSTNAME` | `0.0.0.0` | Hostname to bind to |
+| `ENABLE_CLAUDE_CODE` | `false` | Enable Claude Code integration features |
+| `CLAUDE_SSE_BUFFER_SIZE_MB` | `5` | SSE stream buffer size in MB |
+| `MAX_FILE_SIZE_MB` | `10` | Maximum file size for content viewing |
 
 #### Volume Mounts
 

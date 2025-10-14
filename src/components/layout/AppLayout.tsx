@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { Layout, Typography, Spin, Space, App, Button } from 'antd';
-import { BulbOutlined, MoonOutlined, MessageOutlined, SunOutlined } from '@ant-design/icons';
+import { MoonOutlined, MessageOutlined, SunOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { FileTree } from '@/components/fileTree/FileTree';
 import { ProjectSidebar } from '@/components/project/ProjectSidebar';
@@ -15,6 +14,7 @@ import { ProjectProvider } from '@/lib/providers/project-provider';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ClaudeErrorBoundary } from '@/components/common/ClaudeErrorBoundary';
 import { useDesignTokens, useStyleUtils, useThemedStyles } from '@/lib/design/useDesignTokens';
+import { appConfig } from '@/lib/services/appConfigService';
 
 const ContentViewer = React.lazy(() => 
   import('@/components/contentViewer/ContentViewer').then(module => ({
@@ -38,18 +38,21 @@ const AppLayoutInner: React.FC = () => {
   const tokens = useDesignTokens();
   const styles = useStyleUtils();
   const themedStyles = useThemedStyles();
-  
+
+  // Check if Claude Code feature is enabled
+  const isClaudeCodeEnabled = appConfig.isClaudeCodeEnabled();
+
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [projectSidebarVisible, setProjectSidebarVisible] = useState(false);
   const [chatPanelVisible, setChatPanelVisible] = useState(false);
-  const [chatPanelWidth, setChatPanelWidth] = useState(350); // 預設寬度
-  const [fileTreeWidth, setFileTreeWidth] = useState(260); // FileTree 預設寬度
+  const [chatPanelWidth, setChatPanelWidth] = useState(350); // Default width
+  const [fileTreeWidth, setFileTreeWidth] = useState(260); // FileTree default width
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingFileTree, setIsDraggingFileTree] = useState(false);
 
-  // 使用設計系統的樣式
+  // Design system styles
   const headerStyle = {
     backgroundColor: themedStyles.headerBg,
     padding: `0 ${tokens.spacing.lg}`,
@@ -115,18 +118,18 @@ const AppLayoutInner: React.FC = () => {
     };
   }, [message, t]);
 
-  // 清理拖拽相關資源
+  // Cleanup drag-related resources
   useEffect(() => {
     return () => {
-      // 清理所有未完成的 RAF
+      // Cancel all unfinished RAF
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
       }
       if (rafIdChatRef.current) {
         cancelAnimationFrame(rafIdChatRef.current);
       }
-      
-      // 重置拖拽狀態
+
+      // Reset drag states
       isDraggingRef.current = false;
       isDraggingFileTreeRef.current = false;
     };
@@ -169,7 +172,7 @@ const AppLayoutInner: React.FC = () => {
     setChatPanelVisible(!chatPanelVisible);
   };
 
-  // ChatPanel 拖拽處理邏輯 - 優化版本
+  // ChatPanel drag handling logic - optimized version
   const isDraggingRef = useRef(false);
   const rafIdChatRef = useRef<number>();
 
@@ -177,28 +180,28 @@ const AppLayoutInner: React.FC = () => {
     e.preventDefault();
     setIsDragging(true);
     isDraggingRef.current = true;
-    
+
     const startX = e.clientX;
     const startWidth = chatPanelWidth;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
-      
-      // 正確計算新寬度：Chat Panel 從右側拖拽，所以是反向計算
-      const deltaX = startX - e.clientX; // 注意：反向計算
+
+      // Calculate new width: Chat Panel drags from right side, so reverse calculation
+      const deltaX = startX - e.clientX; // Note: reverse calculation
       const newWidth = startWidth + deltaX;
       const minWidth = 300;
       const maxWidth = Math.min(800, window.innerWidth - 400);
       const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
-      
-      // 使用 RAF throttle 減少狀態更新頻率
+
+      // Use RAF throttle to reduce state update frequency
       if (rafIdChatRef.current) {
         cancelAnimationFrame(rafIdChatRef.current);
       }
-      
+
       rafIdChatRef.current = requestAnimationFrame(() => {
         setChatPanelWidth(clampedWidth);
-        rafIdChatRef.current = undefined; // 確保清理
+        rafIdChatRef.current = undefined; // Ensure cleanup
       });
     };
     
@@ -223,37 +226,37 @@ const AppLayoutInner: React.FC = () => {
     document.body.style.userSelect = 'none';
   }, [chatPanelWidth]);
 
-  // 使用 ref 追蹤拖拽狀態，避免每次 mousemove 都重新渲染
+  // Use ref to track drag state, avoid re-rendering on every mousemove
   const isDraggingFileTreeRef = useRef(false);
   const rafIdRef = useRef<number>();
 
-  // FileTree 拖拽處理邏輯 - 修復版本
+  // FileTree drag handling logic - fixed version
   const handleFileTreeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsDraggingFileTree(true);
     isDraggingFileTreeRef.current = true;
-    
+
     const startX = e.clientX;
     const startWidth = fileTreeWidth;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingFileTreeRef.current) return;
-      
-      // 正確計算新寬度：起始寬度 + 滑鼠移動距離
+
+      // Calculate new width: start width + mouse movement distance
       const deltaX = e.clientX - startX;
       const newWidth = startWidth + deltaX;
       const minWidth = 200;
       const maxWidth = Math.min(500, window.innerWidth - 600);
       const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
-      
-      // 使用 RAF throttle 減少狀態更新頻率
+
+      // Use RAF throttle to reduce state update frequency
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
       }
-      
+
       rafIdRef.current = requestAnimationFrame(() => {
         setFileTreeWidth(clampedWidth);
-        rafIdRef.current = undefined; // 確保清理
+        rafIdRef.current = undefined; // Ensure cleanup
       });
     };
     
@@ -359,17 +362,19 @@ const AppLayoutInner: React.FC = () => {
         </Space>
         
         <Space align="center">
-          <Button
-            type="text"
-            icon={<MessageOutlined />}
-            onClick={toggleChatPanel}
-            style={{
-              color: chatPanelVisible 
-                ? '#1890ff' 
-                : (isDark ? '#b8b8b8' : '#666666')
-            }}
-            aria-label="Toggle chat panel"
-          />
+          {isClaudeCodeEnabled && (
+            <Button
+              type="text"
+              icon={<MessageOutlined />}
+              onClick={toggleChatPanel}
+              style={{
+                color: chatPanelVisible
+                  ? '#1890ff'
+                  : (isDark ? '#b8b8b8' : '#666666')
+              }}
+              aria-label="Toggle chat panel"
+            />
+          )}
           <Button
             type="text"
             icon={isDark ? <SunOutlined /> : <MoonOutlined />}
@@ -395,8 +400,8 @@ const AppLayoutInner: React.FC = () => {
             ...sidebarStyle,
             display: 'flex'
           }}>
-            {/* FileTree 內容 */}
-            <div style={{ 
+            {/* FileTree content */}
+            <div style={{
               flex: 1,
               borderRight: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
               overflow: 'hidden'
@@ -405,8 +410,8 @@ const AppLayoutInner: React.FC = () => {
                 <FileTree onFileSelect={handleFileSelect} selectedFile={selectedFile} darkMode={isDark} />
               </ErrorBoundary>
             </div>
-            
-            {/* 拖拽手柄 */}
+
+            {/* Drag handle */}
             <div
               style={{
                 width: '4px',
@@ -418,7 +423,7 @@ const AppLayoutInner: React.FC = () => {
               }}
               onMouseDown={handleFileTreeMouseDown}
             >
-              {/* 可見的拖拽指示線 */}
+              {/* Visible drag indicator */}
               <div
                 style={{
                   position: 'absolute',
@@ -464,73 +469,75 @@ const AppLayoutInner: React.FC = () => {
               </ErrorBoundary>
             </div>
 
-            {/* Chat Panel - Always rendered for state persistence */}
-            <div
-              style={{
-                width: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
-                minWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
-                maxWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
-                height: '100%',
-                overflow: 'hidden',
-                transition: isDragging ? 'none' : `width ${tokens.transitions.normal}, min-width ${tokens.transitions.normal}, max-width ${tokens.transitions.normal}`,
-                display: 'flex',
-                backgroundColor: tokens.colors.background.primary,
-                borderLeft: chatPanelVisible ? `1px solid ${tokens.colors.border.primary}` : 'none'
-              }}
-            >
-              {/* 拖拽手柄 - 只在可見時顯示 */}
-              {chatPanelVisible && (
-                <div
-                  style={{
-                    width: '4px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    cursor: 'col-resize',
-                    position: 'relative'
-                  }}
-                  onMouseDown={handleChatPanelMouseDown}
-                >
-                  {/* 可見的拖拽指示線 */}
+            {/* Chat Panel - Only rendered when Claude Code is enabled */}
+            {isClaudeCodeEnabled && (
+              <div
+                style={{
+                  width: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
+                  minWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
+                  maxWidth: chatPanelVisible ? `${chatPanelWidth}px` : '0px',
+                  height: '100%',
+                  overflow: 'hidden',
+                  transition: isDragging ? 'none' : `width ${tokens.transitions.normal}, min-width ${tokens.transitions.normal}, max-width ${tokens.transitions.normal}`,
+                  display: 'flex',
+                  backgroundColor: tokens.colors.background.primary,
+                  borderLeft: chatPanelVisible ? `1px solid ${tokens.colors.border.primary}` : 'none'
+                }}
+              >
+                {/* Drag handle - only shown when visible */}
+                {chatPanelVisible && (
                   <div
                     style={{
-                      position: 'absolute',
-                      left: '1px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '2px',
-                      height: '40px',
-                      backgroundColor: themedStyles.dragHandleBg,
-                      borderRadius: tokens.borderRadius.sm,
-                      opacity: isDragging ? 1 : 0.3,
-                      transition: tokens.transitions.fast
-                    }}
-                  />
-                </div>
-              )}
-          
-              {/* ChatPanel 內容 - 始終渲染以保持狀態 */}
-              <div style={{ 
-                flex: 1, 
-                overflow: 'hidden',
-                display: chatPanelVisible ? 'block' : 'none' // 使用 display 控制可見性而非條件渲染
-              }}>
-                <ClaudeErrorBoundary onRetry={() => window.location.reload()}>
-                  <Suspense fallback={
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
+                      width: '4px',
                       height: '100%',
-                      backgroundColor: tokens.colors.background.primary
-                    }}>
-                      <Spin size="large" />
-                    </div>
-                  }>
-                    <ChatPanel darkMode={isDark} />
-                  </Suspense>
-                </ClaudeErrorBoundary>
+                      backgroundColor: 'transparent',
+                      cursor: 'col-resize',
+                      position: 'relative'
+                    }}
+                    onMouseDown={handleChatPanelMouseDown}
+                  >
+                    {/* Visible drag indicator */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '1px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: '2px',
+                        height: '40px',
+                        backgroundColor: themedStyles.dragHandleBg,
+                        borderRadius: tokens.borderRadius.sm,
+                        opacity: isDragging ? 1 : 0.3,
+                        transition: tokens.transitions.fast
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* ChatPanel content - always rendered to maintain state */}
+                <div style={{
+                  flex: 1,
+                  overflow: 'hidden',
+                  display: chatPanelVisible ? 'block' : 'none' // Use display to control visibility instead of conditional rendering
+                }}>
+                  <ClaudeErrorBoundary onRetry={() => window.location.reload()}>
+                    <Suspense fallback={
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '100%',
+                        backgroundColor: tokens.colors.background.primary
+                      }}>
+                        <Spin size="large" />
+                      </div>
+                    }>
+                      <ChatPanel darkMode={isDark} />
+                    </Suspense>
+                  </ClaudeErrorBoundary>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </Content>

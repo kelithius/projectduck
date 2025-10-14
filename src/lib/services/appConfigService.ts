@@ -1,40 +1,41 @@
 /**
- * AppConfigService - 應用程式配置管理服務
- * 
- * 功能：
- * - 管理應用程式級別的配置
- * - 提供預設值和環境變數覆蓋
- * - 運行時配置驗證
+ * AppConfigService - Application Configuration Management Service
+ *
+ * Features:
+ * - Manage application-level configuration
+ * - Provide defaults and environment variable overrides
+ * - Runtime configuration validation
  */
 
 export interface AppConfig {
-  // Claude Code 相關配置
+  // Claude Code related configuration
   claude: {
-    sseBufferSizeMB: number;        // SSE buffer 大小 (MB)
-    maxResponseSizeMB: number;      // 最大回應大小 (MB) 
-    connectionTimeoutMs: number;    // 連線超時時間 (毫秒)
-    retryAttempts: number;         // 重試次數
+    enabled: boolean;              // Enable Claude Code integration
+    sseBufferSizeMB: number;        // SSE buffer size (MB)
+    maxResponseSizeMB: number;      // Maximum response size (MB)
+    connectionTimeoutMs: number;    // Connection timeout (milliseconds)
+    retryAttempts: number;         // Retry attempts
   };
-  
-  // 檔案處理配置
+
+  // File processing configuration
   files: {
-    maxFileSizeMB: number;         // 最大檔案大小 (MB)
-    maxPreviewSizeMB: number;      // 預覽大小限制 (MB)
-    watchIntervalMs: number;       // 檔案監控間隔 (毫秒)
+    maxFileSizeMB: number;         // Maximum file size (MB)
+    maxPreviewSizeMB: number;      // Preview size limit (MB)
+    watchIntervalMs: number;       // File watch interval (milliseconds)
   };
 
-  // 安全性配置
+  // Security configuration
   security: {
-    enablePathValidation: boolean;  // 啟用路徑驗證
-    allowedExtensions: string[];   // 允許的檔案擴展名
-    blockedPaths: string[];        // 封鎖的路徑模式
+    enablePathValidation: boolean;  // Enable path validation
+    allowedExtensions: string[];   // Allowed file extensions
+    blockedPaths: string[];        // Blocked path patterns
   };
 
-  // 效能配置
+  // Performance configuration
   performance: {
-    enableVirtualization: boolean; // 啟用虛擬化
-    virtualizationThreshold: number; // 虛擬化門檻
-    cacheMaxAge: number;          // 快取最大年齡 (秒)
+    enableVirtualization: boolean; // Enable virtualization
+    virtualizationThreshold: number; // Virtualization threshold
+    cacheMaxAge: number;          // Cache max age (seconds)
   };
 }
 
@@ -55,11 +56,12 @@ class AppConfigService {
   }
 
   /**
-   * 載入配置，優先序：環境變數 > 預設值
+   * Load configuration, priority: environment variables > defaults
    */
   private loadConfig(): AppConfig {
     const defaultConfig: AppConfig = {
       claude: {
+        enabled: process.env.ENABLE_CLAUDE_CODE === 'true', // Default disabled, must explicitly set to 'true' to enable
         sseBufferSizeMB: Number(process.env.CLAUDE_SSE_BUFFER_SIZE_MB) || 5,
         maxResponseSizeMB: Number(process.env.CLAUDE_MAX_RESPONSE_SIZE_MB) || 10,
         connectionTimeoutMs: Number(process.env.CLAUDE_CONNECTION_TIMEOUT_MS) || 30000,
@@ -73,7 +75,7 @@ class AppConfigService {
       security: {
         enablePathValidation: process.env.ENABLE_PATH_VALIDATION !== 'false',
         allowedExtensions: process.env.ALLOWED_EXTENSIONS?.split(',') || [
-          '.md', '.txt', '.json', '.js', '.ts', '.tsx', '.jsx', 
+          '.md', '.txt', '.json', '.js', '.ts', '.tsx', '.jsx',
           '.py', '.css', '.html', '.xml', '.yml', '.yaml'
         ],
         blockedPaths: process.env.BLOCKED_PATHS?.split(',') || [
@@ -91,12 +93,12 @@ class AppConfigService {
   }
 
   /**
-   * 驗證配置值的合理性
+   * Validate configuration values
    */
   private validateConfig(): void {
     const { claude, files, performance } = this.config;
 
-    // 驗證 Claude 配置
+    // Validate Claude configuration
     if (claude.sseBufferSizeMB < 1 || claude.sseBufferSizeMB > 50) {
       throw new Error('Claude SSE buffer size must be between 1-50MB');
     }
@@ -109,12 +111,12 @@ class AppConfigService {
       throw new Error('Claude connection timeout must be at least 5 seconds');
     }
 
-    // 驗證檔案配置
+    // Validate file configuration
     if (files.maxFileSizeMB < 1 || files.maxFileSizeMB > 100) {
       throw new Error('File size limit must be between 1-100MB');
     }
 
-    // 驗證效能配置
+    // Validate performance configuration
     if (performance.virtualizationThreshold < 100) {
       throw new Error('Virtualization threshold must be at least 100');
     }
@@ -125,60 +127,60 @@ class AppConfigService {
   }
 
   /**
-   * 取得完整配置
+   * Get complete configuration
    */
   public getConfig(): AppConfig {
     return { ...this.config };
   }
 
   /**
-   * 取得 Claude 配置
+   * Get Claude configuration
    */
   public getClaudeConfig() {
     return { ...this.config.claude };
   }
 
   /**
-   * 取得檔案配置
+   * Get file configuration
    */
   public getFilesConfig() {
     return { ...this.config.files };
   }
 
   /**
-   * 取得安全配置
+   * Get security configuration
    */
   public getSecurityConfig() {
     return { ...this.config.security };
   }
 
   /**
-   * 取得效能配置
+   * Get performance configuration
    */
   public getPerformanceConfig() {
     return { ...this.config.performance };
   }
 
   /**
-   * 取得 SSE Buffer 大小（位元組）
+   * Get SSE buffer size in bytes
    */
   public getSSEBufferSize(): number {
     return this.config.claude.sseBufferSizeMB * 1024 * 1024;
   }
 
   /**
-   * 取得檔案大小限制（位元組）
+   * Get file size limit in bytes
    */
   public getMaxFileSize(): number {
     return this.config.files.maxFileSizeMB * 1024 * 1024;
   }
 
   /**
-   * 運行時更新配置（用於測試或動態調整）
+   * Runtime configuration update (for testing or dynamic adjustment)
    */
   public updateConfig(updates: Partial<AppConfig>): void {
-    this.config = { 
-      ...this.config, 
+    this.config = {
+      ...this.config,
       ...updates,
       claude: { ...this.config.claude, ...updates.claude },
       files: { ...this.config.files, ...updates.files },
@@ -189,10 +191,18 @@ class AppConfigService {
   }
 
   /**
-   * 取得配置摘要（用於除錯）
+   * Check if Claude Code feature is enabled
+   */
+  public isClaudeCodeEnabled(): boolean {
+    return this.config.claude.enabled;
+  }
+
+  /**
+   * Get configuration summary (for debugging)
    */
   public getConfigSummary(): string {
     return JSON.stringify({
+      'Claude Code': this.config.claude.enabled ? 'Enabled' : 'Disabled',
       'SSE Buffer Size': `${this.config.claude.sseBufferSizeMB}MB`,
       'Max File Size': `${this.config.files.maxFileSizeMB}MB`,
       'Connection Timeout': `${this.config.claude.connectionTimeoutMs}ms`,
@@ -202,5 +212,5 @@ class AppConfigService {
   }
 }
 
-// 匯出單例實例
+// Export singleton instance
 export const appConfig = AppConfigService.getInstance();
