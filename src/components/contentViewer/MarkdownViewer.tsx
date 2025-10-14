@@ -6,16 +6,20 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Card } from 'antd';
 import { MermaidRenderer } from './MermaidRenderer';
+import { MarkmapRenderer } from './MarkmapRenderer';
 import { useTranslation } from 'react-i18next';
 import 'highlight.js/styles/github.css';
+import '@/styles/code-highlight.css';
 
 interface MarkdownViewerProps {
   content: string;
   darkMode?: boolean;
+  showMarkmap?: boolean;
 }
 
-export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMode = false }) => {
+export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMode = false, showMarkmap = false }) => {
   const { t } = useTranslation();
+
   useEffect(() => {
     if (!content) return;
     const codeBlocks = document.querySelectorAll('.markdown-content pre code');
@@ -170,15 +174,21 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
   }
 
   return (
-    <Card 
+    <Card
       style={cardStyle}
       styles={{ body: { padding: 0, height: '100%' } }}
     >
-      <div 
-        className="markdown-content"
-        style={contentStyle}
-      >
-        <ReactMarkdown
+      {/* Content Display */}
+      {showMarkmap ? (
+        <div style={{ padding: '16px', height: '100%' }}>
+          <MarkmapRenderer content={content} darkMode={darkMode} />
+        </div>
+      ) : (
+        <div
+          className="markdown-content"
+          style={contentStyle}
+        >
+          <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[
             [rehypeHighlight, { 
@@ -224,14 +234,8 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
             code: ({ inline, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
               if (inline) {
                 return (
-                  <code 
-                    style={{ 
-                      backgroundColor: darkMode ? '#2d2d2d' : '#f6f8fa',
-                      color: darkMode ? '#e6e6e6' : '#000',
-                      padding: '2px 4px',
-                      borderRadius: '3px',
-                      fontSize: '13px'
-                    }}
+                  <code
+                    className={darkMode ? 'code-inline-dark' : 'code-inline-light'}
                     {...props}
                   >
                     {children}
@@ -381,7 +385,8 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, darkMod
         >
           {content}
         </ReactMarkdown>
-      </div>
+        </div>
+      )}
     </Card>
   );
 };
