@@ -36,6 +36,11 @@
     "notAvailable": "Chart rendering is temporarily unavailable",
     "showSource": "Show source code"
   },
+  "markmap": {
+    "showMarkmap": "Show Mindmap",
+    "hideMarkmap": "Hide Mindmap",
+    "error": "Markmap rendering error"
+  },
   "project": {
     "sidebar": {
       "title": "Select Project",

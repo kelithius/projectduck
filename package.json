@@ -17,6 +17,8 @@
     "cors": "^2.8.5",
     "fs-extra": "^11.3.1",
     "i18next": "^25.3.2",
+    "markmap-lib": "^0.18.12",
+    "markmap-view": "^0.18.12",
     "mime-types": "^3.0.1",
     "next": "15.4.6",
     "next-i18next": "^15.4.2",

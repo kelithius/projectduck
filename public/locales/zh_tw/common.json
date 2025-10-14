@@ -36,6 +36,11 @@
     "notAvailable": "圖表渲染功能暫時不可用",
     "showSource": "顯示原始碼"
   },
+  "markmap": {
+    "showMarkmap": "顯示心智圖",
+    "hideMarkmap": "隱藏心智圖",
+    "error": "Markmap 渲染錯誤"
+  },
   "project": {
     "sidebar": {
       "title": "選擇專案",

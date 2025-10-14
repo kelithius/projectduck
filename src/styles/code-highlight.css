@@ -1,0 +1,31 @@
+/* Shared code syntax highlighting styles */
+/* Used by both MarkdownViewer and MarkmapRenderer */
+
+/* Light mode - inline code */
+.code-inline-light {
+  background-color: #f6f8fa !important;
+  color: #000 !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  font-size: 13px !important;
+}
+
+/* Dark mode - inline code */
+.code-inline-dark {
+  background-color: #2d2d2d !important;
+  color: #e6e6e6 !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  font-size: 13px !important;
+}
+
+/* CSS Variables for code highlighting */
+:root {
+  --code-inline-bg-light: #f6f8fa;
+  --code-inline-color-light: #000;
+  --code-inline-bg-dark: #2d2d2d;
+  --code-inline-color-dark: #e6e6e6;
+  --code-padding: 2px 4px;
+  --code-border-radius: 3px;
+  --code-font-size: 13px;
+}
