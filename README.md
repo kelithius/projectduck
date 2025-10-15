@@ -8,7 +8,7 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 
 - **🎯 Modern Full-Stack Architecture**: Based on Next.js 15 + App Router, supports SSR/SSG
 - **🎨 Intuitive Dual-Panel Design**: File tree on the left + content viewer on the right, with adjustable split ratios
-- **📝 Enhanced Markdown Support**: GitHub Flavored Markdown + Mermaid chart rendering
+- **📝 Enhanced Markdown Support**: GitHub Flavored Markdown + Mermaid chart rendering + Markmap mind map visualization
 - **🎭 Theme Switching**: Dark/light modes based on Ant Design theme system
 - **🌐 Internationalization**: Default Traditional Chinese with multi-language support
 - **⚡ Performance Optimization**: API response caching, lazy loading, dynamic imports
@@ -19,17 +19,20 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 ## 🚀 Tech Stack
 
 ### Core Framework
+
 - **Next.js 15.4.6** - Full-stack React framework (App Router + API Routes)
 - **React 18.3.1** - Modern frontend library
 - **TypeScript 5.x** - Static type support
 
 ### UI & Styling
+
 - **Ant Design 5.26.7** - Enterprise-class UI component library
 - **Allotment 1.20.4** - Resizable split panels
 - **Tailwind CSS 4** - Utility-first CSS framework
 - **CSS Modules** - Component style isolation
 
 ### Content Rendering
+
 - **react-markdown 10.1.0** - Markdown to React component conversion
 - **remark-gfm 4.0.1** - GitHub Flavored Markdown support
 - **react-syntax-highlighter 15.6.1** - Code syntax highlighting
@@ -37,6 +40,7 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 - **Mermaid** - Flowchart and diagram rendering
 
 ### Internationalization & Tools
+
 - **next-i18next 15.4.2** - Next.js internationalization support
 - **i18next 25.3.2** - Multi-language framework
 - **fs-extra 11.3.1** - Enhanced file system operations
@@ -45,14 +49,14 @@ ProjectDuck is a modern file browser and document viewer built on the Next.js 15
 
 ## 🎯 Supported File Formats
 
-| File Type | Supported Features |
-|----------|----------|
-| **Markdown** (`.md`, `.markdown`) | GFM syntax, tables, task lists, syntax highlighting, Mermaid charts |
-| **Code Files** | JavaScript, TypeScript, Python, Java, C++, Go, Rust and 190+ languages |
-| **JSON** | Formatted display with syntax highlighting |
-| **Images** | JPG, PNG, GIF, SVG, WebP and other formats |
-| **Videos** | MP4, WebM, MOV and browser-supported formats |
-| **Plain Text** | TXT, LOG and other text files |
+| File Type                         | Supported Features                                                     |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| **Markdown** (`.md`, `.markdown`) | GFM syntax, tables, task lists, syntax highlighting, Mermaid charts    |
+| **Code Files**                    | JavaScript, TypeScript, Python, Java, C++, Go, Rust and 190+ languages |
+| **JSON**                          | Formatted display with syntax highlighting                             |
+| **Images**                        | JPG, PNG, GIF, SVG, WebP and other formats                             |
+| **Videos**                        | MP4, WebM, MOV and browser-supported formats                           |
+| **Plain Text**                    | TXT, LOG and other text files                                          |
 
 ## 🏗️ Project Structure
 
@@ -97,12 +101,14 @@ ProjectDuck/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18.0 or higher
 - npm, yarn, pnpm, or bun
 
 ### Installation & Setup
 
 1. **Install Dependencies**
+
 ```bash
 npm install
 # or
@@ -112,16 +118,17 @@ pnpm install
 ```
 
 2. **Start Development Server**
+
 ```bash
 npm run dev
 # or
 yarn dev
-# or 
+# or
 pnpm dev
 ```
 
 3. **Open Browser**
-Navigate to [http://localhost:3000](http://localhost:3000) to view the application
+   Navigate to [http://localhost:3000](http://localhost:3000) to view the application
 
 ### Available Commands
 
@@ -173,34 +180,41 @@ VIRTUALIZATION_THRESHOLD=1000
 See `.env.example` for all available configuration options.
 
 ### Internationalization Settings
+
 Configure languages in `next-i18next.config.js`:
+
 ```javascript
 module.exports = {
   i18n: {
-    defaultLocale: 'zh_tw',    // Default Traditional Chinese
-    locales: ['en', 'zh_tw'],  // Supported languages
+    defaultLocale: "zh_tw", // Default Traditional Chinese
+    locales: ["en", "zh_tw"], // Supported languages
   },
-}
+};
 ```
 
 ### Browse Directory
+
 By default, browses files in the `/example` directory. Can be modified via the `BASE_PATH` environment variable.
 
 ## 🎨 Feature Highlights
 
 ### Dual-Panel Design
+
 - **Left Panel**: File tree browser with expand/collapse and search filtering
 - **Right Panel**: Dynamic content viewer that automatically switches rendering modes based on file type
 - **Adjustable**: Drag to adjust the width ratio between left and right panels
 
 ### Enhanced Markdown Features
+
 - ✅ Full GitHub Flavored Markdown support
 - ✅ Code block syntax highlighting (190+ languages)
 - ✅ Automatic Mermaid chart rendering (flowcharts, sequence diagrams, Gantt charts, etc.)
+- ✅ **Markmap mind map visualization** - One-click toggle to view Markdown files as interactive mind maps
 - ✅ Tables, task lists, strikethrough and other extended syntax
 - 🟡 Section collapsing functionality (in development)
 
 ### Performance & Experience
+
 - **API Caching**: Smart caching mechanism reduces duplicate requests
 - **Lazy Loading**: Dynamic loading of file tree and components
 - **Hot Configuration Reload**: Automatically detects and applies changes to projects.json without restart
@@ -212,28 +226,31 @@ By default, browses files in the `/example` directory. Can be modified via the `
 ## 🔧 Development Guide
 
 ### Development Tool Configuration
+
 - **TypeScript**: Strict mode, path alias `@/*`
 - **ESLint**: Next.js + TypeScript rule set
 - **Tailwind CSS**: Coexisting configuration with Ant Design
 
 ### Adding Support for New File Types
+
 Add handling logic in `src/components/contentViewer/ContentViewer.tsx`:
 
 ```typescript
 const getContentType = (file: FileItem) => {
-  if (file.extension === '.your-extension') {
-    return 'your-custom-type';
+  if (file.extension === ".your-extension") {
+    return "your-custom-type";
   }
   // ... other type checks
 };
 ```
 
 ### API Routes Development
+
 Create new route files in the `src/app/api/` directory:
 
 ```typescript
 // src/app/api/your-endpoint/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   // Processing logic
@@ -257,7 +274,7 @@ echo '{
   "version": "1.0",
   "projects": [
     {
-      "name": "My Documents", 
+      "name": "My Documents",
       "path": "/workspace/docs"
     }
   ]
@@ -321,39 +338,47 @@ docker run -d -p 3000:3000 \
 Create a `docker-compose.yml` file for easier management:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   projectduck:
     image: kelithius/projectduck:latest
     container_name: projectduck
     restart: unless-stopped
-    
+
     ports:
       - "3000:3000"
-    
+
     # Environment variables
     environment:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
-    
+
     # Volume mounts for custom documents and configuration
     volumes:
       # Mount your workspace directory containing all projects
       - /path/to/your/workspace:/workspace
-      
+
       # Optional: Custom projects.json configuration
       # - ./custom-projects.json:/app/projects.json
-    
+
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    
+
     # Security options
     security_opt:
       - no-new-privileges:true
@@ -392,21 +417,21 @@ docker run -d -p 3000:3000 my-projectduck
 
 #### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | Port number for the server |
-| `NODE_ENV` | `production` | Node.js environment |
-| `HOSTNAME` | `0.0.0.0` | Hostname to bind to |
-| `ENABLE_CLAUDE_CODE` | `false` | Enable Claude Code integration features |
-| `CLAUDE_SSE_BUFFER_SIZE_MB` | `5` | SSE stream buffer size in MB |
-| `MAX_FILE_SIZE_MB` | `10` | Maximum file size for content viewing |
+| Variable                    | Default      | Description                             |
+| --------------------------- | ------------ | --------------------------------------- |
+| `PORT`                      | `3000`       | Port number for the server              |
+| `NODE_ENV`                  | `production` | Node.js environment                     |
+| `HOSTNAME`                  | `0.0.0.0`    | Hostname to bind to                     |
+| `ENABLE_CLAUDE_CODE`        | `false`      | Enable Claude Code integration features |
+| `CLAUDE_SSE_BUFFER_SIZE_MB` | `5`          | SSE stream buffer size in MB            |
+| `MAX_FILE_SIZE_MB`          | `10`         | Maximum file size for content viewing   |
 
 #### Volume Mounts
 
-| Path | Purpose | Example |
-|------|---------|---------|
-| `/workspace` | Main workspace directory | `-v /host/workspace:/workspace` |
-| `/app/projects.json` | Project configuration | `-v ./my-config.json:/app/projects.json` |
+| Path                 | Purpose                  | Example                                  |
+| -------------------- | ------------------------ | ---------------------------------------- |
+| `/workspace`         | Main workspace directory | `-v /host/workspace:/workspace`          |
+| `/app/projects.json` | Project configuration    | `-v ./my-config.json:/app/projects.json` |
 
 #### Health Check
 

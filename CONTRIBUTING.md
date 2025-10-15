@@ -165,6 +165,47 @@ Implement real-time search in file tree with the following features:
 Closes #123
 ```
 
+### Changelog Management
+
+**All significant changes must be documented in CHANGELOG.md.**
+
+When making changes:
+
+1. **Update `CHANGELOG.md`** under the current date section (e.g., `## [2025-10-15]`)
+2. **Use appropriate subsection**:
+   - `### Added` - New features or capabilities
+   - `### Changed` - Changes to existing functionality
+   - `### Fixed` - Bug fixes
+   - `### Removed` - Removed features or files
+3. **Follow the format**: `- **type**: Description of change`
+4. **Group by date**: All changes on the same day go under the same date header
+
+**Example:**
+
+```markdown
+## [2025-10-15]
+
+### Added
+
+- **feat**: Add Markmap mind map preview for Markdown files
+- **feat**: Implement comprehensive code quality improvements
+
+### Changed
+
+- **refactor**: Translate all Chinese comments to English
+
+### Fixed
+
+- **fix**: Fix file path display in ContentViewer header
+```
+
+**When NOT to update CHANGELOG:**
+
+- Minor typo fixes
+- Internal refactoring without user-facing changes
+- Documentation updates (unless significant)
+- Version bumps for dependencies (unless it affects functionality)
+
 ### Pre-commit Checks
 
 Pre-commit hooks will automatically run:
