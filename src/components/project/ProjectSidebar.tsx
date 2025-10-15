@@ -1,12 +1,16 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Drawer, Typography, Space, Alert, Button, Spin, Divider } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { useProjectSwitch } from '@/lib/hooks/use-project-switch';
-import { ProjectItem } from './ProjectItem';
-import { useDesignTokens, useStyleUtils, useThemedStyles } from '@/lib/design/useDesignTokens';
+import React from "react";
+import { Drawer, Typography, Space, Alert, Button, Spin, Divider } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
+import { useProjectSwitch } from "@/lib/hooks/use-project-switch";
+import { ProjectItem } from "./ProjectItem";
+import {
+  useDesignTokens,
+  useStyleUtils,
+  useThemedStyles,
+} from "@/lib/design/useDesignTokens";
 
 const { Title, Text } = Typography;
 
@@ -19,13 +23,13 @@ interface ProjectSidebarProps {
 export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   visible,
   onClose,
-  isDark
+  isDark,
 }) => {
   const { t } = useTranslation();
   const tokens = useDesignTokens();
-  const styles = useStyleUtils();
+  const _styles = useStyleUtils();
   const themedStyles = useThemedStyles();
-  
+
   const {
     currentProject,
     projects,
@@ -33,7 +37,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     getInvalidProjects,
     switchToProject,
     isLoading,
-    error
+    error,
   } = useProjectSwitch();
 
   const validProjects = getValidProjects();
@@ -46,42 +50,42 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
   const drawerStyle = {
     backgroundColor: tokens.colors.background.primary,
-    borderRight: `1px solid ${tokens.colors.border.secondary}`
+    borderRight: `1px solid ${tokens.colors.border.secondary}`,
   };
 
   const headerStyle = {
     backgroundColor: tokens.colors.background.secondary,
     borderBottom: `1px solid ${tokens.colors.border.secondary}`,
-    padding: '16px 24px'
+    padding: "16px 24px",
   };
 
   const bodyStyle = {
     backgroundColor: tokens.colors.background.primary,
-    padding: '0'
+    padding: "0",
   };
 
   return (
     <Drawer
       title={
         <div style={headerStyle}>
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Title 
-                level={4} 
-                style={{ 
-                  margin: 0, 
-                  color: isDark ? '#ffffff' : '#000000' 
+          <Space direction="vertical" size={8} style={{ width: "100%" }}>
+            <Space style={{ width: "100%", justifyContent: "space-between" }}>
+              <Title
+                level={4}
+                style={{
+                  margin: 0,
+                  color: isDark ? "#ffffff" : "#000000",
                 }}
               >
-                {t('project.sidebar.title')}
+                {t("project.sidebar.title")}
               </Title>
               <Button
                 type="text"
                 size="small"
                 icon={<CloseOutlined />}
                 onClick={onClose}
-                style={{ 
-                  color: isDark ? '#ffffff' : '#1890ff' 
+                style={{
+                  color: isDark ? "#ffffff" : "#1890ff",
                 }}
               />
             </Space>
@@ -94,34 +98,34 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       width={320}
       closable={false}
       styles={{
-        header: { display: 'none' },
+        header: { display: "none" },
         body: bodyStyle,
-        content: drawerStyle
+        content: drawerStyle,
       }}
       mask={true}
       maskClosable={true}
     >
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div style={headerStyle}>
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Title 
-                level={4} 
-                style={{ 
-                  margin: 0, 
-                  color: isDark ? '#ffffff' : '#000000' 
+          <Space direction="vertical" size={8} style={{ width: "100%" }}>
+            <Space style={{ width: "100%", justifyContent: "space-between" }}>
+              <Title
+                level={4}
+                style={{
+                  margin: 0,
+                  color: isDark ? "#ffffff" : "#000000",
                 }}
               >
-                {t('project.sidebar.title')}
+                {t("project.sidebar.title")}
               </Title>
               <Button
                 type="text"
                 size="small"
                 icon={<CloseOutlined />}
                 onClick={onClose}
-                style={{ 
-                  color: isDark ? '#ffffff' : '#1890ff' 
+                style={{
+                  color: isDark ? "#ffffff" : "#1890ff",
                 }}
               />
             </Space>
@@ -129,22 +133,24 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '16px 0' }}>
+        <div style={{ flex: 1, overflow: "auto", padding: "16px 0" }}>
           {isLoading && (
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              height: '100px'
-            }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100px",
+              }}
+            >
               <Spin size="large" />
             </div>
           )}
 
           {error && (
-            <div style={{ padding: '0 16px', marginBottom: '16px' }}>
+            <div style={{ padding: "0 16px", marginBottom: "16px" }}>
               <Alert
-                message={t('project.sidebar.error')}
+                message={t("project.sidebar.error")}
                 description={error}
                 type="error"
                 showIcon
@@ -158,26 +164,31 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
               {/* Valid Projects */}
               {validProjects.length > 0 && (
                 <div>
-                  <div style={{ padding: '0 16px', marginBottom: '8px' }}>
-                    <Text 
-                      strong 
-                      style={{ 
-                        fontSize: '14px',
-                        color: isDark ? '#ffffff' : '#000000' 
+                  <div style={{ padding: "0 16px", marginBottom: "8px" }}>
+                    <Text
+                      strong
+                      style={{
+                        fontSize: "14px",
+                        color: isDark ? "#ffffff" : "#000000",
                       }}
                     >
-                      {t('project.sidebar.available')}
+                      {t("project.sidebar.available")}
                     </Text>
                   </div>
                   {validProjects.map((project) => {
                     const projectIndex = projects.indexOf(project);
-                    const isCurrentProject = currentProject?.name === project.name;
+                    const isCurrentProject =
+                      currentProject?.name === project.name;
                     return (
                       <ProjectItem
                         key={projectIndex}
                         project={project}
                         isActive={isCurrentProject}
-                        onClick={isCurrentProject ? () => {} : () => handleProjectSelect(projectIndex)}
+                        onClick={
+                          isCurrentProject
+                            ? () => {}
+                            : () => handleProjectSelect(projectIndex)
+                        }
                         isDark={isDark}
                         disabled={false}
                       />
@@ -190,21 +201,21 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
               {invalidProjects.length > 0 && (
                 <div>
                   {validProjects.length > 0 && (
-                    <Divider 
-                      style={{ 
-                        borderColor: isDark ? '#303030' : '#d9d9d9',
-                        margin: '16px 0'
-                      }} 
+                    <Divider
+                      style={{
+                        borderColor: isDark ? "#303030" : "#d9d9d9",
+                        margin: "16px 0",
+                      }}
                     />
                   )}
-                  <div style={{ padding: '0 16px', marginBottom: '8px' }}>
-                    <Text 
+                  <div style={{ padding: "0 16px", marginBottom: "8px" }}>
+                    <Text
                       type="warning"
-                      style={{ 
-                        fontSize: '14px'
+                      style={{
+                        fontSize: "14px",
                       }}
                     >
-                      {t('project.sidebar.unavailable')}
+                      {t("project.sidebar.unavailable")}
                     </Text>
                   </div>
                   {invalidProjects.map((project) => {
@@ -224,14 +235,14 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
               )}
 
               {validProjects.length === 0 && invalidProjects.length === 0 && (
-                <div style={{ padding: '16px', textAlign: 'center' }}>
-                  <Text 
+                <div style={{ padding: "16px", textAlign: "center" }}>
+                  <Text
                     type="secondary"
-                    style={{ 
-                      color: isDark ? '#8c8c8c' : '#8c8c8c' 
+                    style={{
+                      color: isDark ? "#8c8c8c" : "#8c8c8c",
                     }}
                   >
-                    {t('project.sidebar.noProjects')}
+                    {t("project.sidebar.noProjects")}
                   </Text>
                 </div>
               )}
