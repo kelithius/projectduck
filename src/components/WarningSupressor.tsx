@@ -1,53 +1,69 @@
-'use client';
+"use client";
 
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect } from "react";
 
 export const WarningSupressor = () => {
   useLayoutEffect(() => {
-    // 在最早的時候攔截所有可能的警告輸出方式
+    // Intercept all possible warning output methods as early as possible
     const originalWarn = console.warn;
     const originalError = console.error;
     const originalLog = console.log;
-    
-    // 攔截 console.warn
-    console.warn = function(message, ...args) {
-      if (typeof message === 'string' && message.includes('antd v5 support React is 16 ~ 18')) {
+
+    // Intercept console.warn
+    console.warn = function (message, ...args) {
+      if (
+        typeof message === "string" &&
+        message.includes("antd v5 support React is 16 ~ 18")
+      ) {
         return;
       }
       originalWarn.apply(console, [message, ...args]);
     };
 
-    // 攔截 console.error
-    console.error = function(message, ...args) {
-      if (typeof message === 'string' && message.includes('antd v5 support React is 16 ~ 18')) {
+    // Intercept console.error
+    console.error = function (message, ...args) {
+      if (
+        typeof message === "string" &&
+        message.includes("antd v5 support React is 16 ~ 18")
+      ) {
         return;
       }
       originalError.apply(console, [message, ...args]);
     };
 
-    // 攔截 console.log（以防萬一）
-    console.log = function(message, ...args) {
-      if (typeof message === 'string' && message.includes('antd v5 support React is 16 ~ 18')) {
+    // Intercept console.log (just in case)
+    console.log = function (message, ...args) {
+      if (
+        typeof message === "string" &&
+        message.includes("antd v5 support React is 16 ~ 18")
+      ) {
         return;
       }
       originalLog.apply(console, [message, ...args]);
     };
 
-    // 嘗試直接修改 React 版本檢查
+    // Attempt to directly modify React version check
     try {
-      // 檢查是否存在 React 版本資訊並嘗試修改
-      if (window && (window as Window & { React?: { version: string } }).React?.version) {
-        Object.defineProperty((window as Window & { React: { version: string } }).React, 'version', {
-          value: '18.3.1',
-          writable: false,
-          configurable: false
-        });
+      // Check if React version information exists and attempt to modify
+      if (
+        window &&
+        (window as Window & { React?: { version: string } }).React?.version
+      ) {
+        Object.defineProperty(
+          (window as Window & { React: { version: string } }).React,
+          "version",
+          {
+            value: "18.3.1",
+            writable: false,
+            configurable: false,
+          },
+        );
       }
     } catch {
-      // 忽略錯誤
+      // Ignore errors
     }
-    
-    // 清理函數
+
+    // Cleanup function
     return () => {
       console.warn = originalWarn;
       console.error = originalError;

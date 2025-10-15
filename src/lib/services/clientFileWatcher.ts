@@ -1,43 +1,43 @@
 /**
- * ClientFileWatcher - 檔案變動監控服務（客戶端版本）
+ * ClientFileWatcher - File change monitoring service (client-side version)
  *
- * 功能：
- * - 透過 SSE 監控單個檔案的變更、移動、刪除事件
- * - 提供檔案狀態變更的回調機制
- * - 自動清理不再需要的監控器，防止記憶體洩漏
- * - 支援多個回調函數的註冊和管理
+ * Features:
+ * - Monitor single file change, move, and delete events via SSE
+ * - Provide callback mechanism for file status changes
+ * - Automatically cleanup unused watchers to prevent memory leaks
+ * - Support registration and management of multiple callback functions
  */
 
 import { FileItem } from "@/lib/types";
 
 /**
- * 檔案變動事件類型
+ * File change event types
  */
 export type FileWatchEvent =
-  | "change" // 檔案內容變更
-  | "unlink" // 檔案被刪除
-  | "add" // 檔案被新增（重新建立）
-  | "move" // 檔案被移動（透過 unlink + add 檢測）
-  | "error"; // 監控錯誤
+  | "change" // File content changed
+  | "unlink" // File deleted
+  | "add" // File added (recreated)
+  | "move" // File moved (detected via unlink + add)
+  | "error"; // Watch error
 
 /**
- * 檔案變動事件數據
+ * File change event data
  */
 export interface FileWatchEventData {
   event: FileWatchEvent;
   filePath: string;
-  newPath?: string; // 當事件為 'move' 時提供新路徑
-  error?: Error; // 當事件為 'error' 時提供錯誤信息
-  file?: FileItem | null; // 更新後的檔案信息，null 表示檔案不存在
+  newPath?: string; // Provides new path when event is 'move'
+  error?: Error; // Provides error information when event is 'error'
+  file?: FileItem | null; // Updated file information, null indicates file doesn't exist
 }
 
 /**
- * 檔案變動回調函數類型
+ * File change callback function type
  */
 export type FileWatchCallback = (data: FileWatchEventData) => void;
 
 /**
- * SSE 訊息類型
+ * SSE message type
  */
 interface SSEMessage {
   type: "connected" | "change" | "unlink" | "add" | "error" | "heartbeat";
@@ -47,18 +47,18 @@ interface SSEMessage {
 }
 
 /**
- * 監控器配置
+ * Watcher configuration
  */
 interface WatcherConfig {
   eventSource: EventSource;
   filePath: string;
   basePath: string;
   callbacks: Set<FileWatchCallback>;
-  lastSeenPath?: string; // 用於檢測檔案移動
+  lastSeenPath?: string; // Used for detecting file moves
 }
 
 /**
- * ClientFileWatcher 類
+ * ClientFileWatcher class
  */
 class ClientFileWatcher {
   private watchers: Map<string, WatcherConfig> = new Map();
@@ -66,11 +66,11 @@ class ClientFileWatcher {
     new Map();
 
   /**
-   * 開始監控指定檔案
-   * @param filePath 要監控的檔案路徑（相對或絕對路徑）
-   * @param basePath 基本路徑
-   * @param callback 檔案變動時的回調函數
-   * @returns 取消監控的清理函數
+   * Start watching specified file
+   * @param filePath - File path to watch (relative or absolute)
+   * @param basePath - Base path
+   * @param callback - Callback function for file changes
+   * @returns Cleanup function to unwatch
    */
   public watchFile(
     filePath: string,
@@ -83,19 +83,19 @@ class ClientFileWatcher {
 
     const watchKey = `${basePath}:${filePath}`;
 
-    // 檢查是否已經有監控器
+    // Check if watcher already exists
     let config = this.watchers.get(watchKey);
 
     if (config) {
-      // 已經存在監控器，只需要添加回調
+      // Watcher already exists, just add callback
       config.callbacks.add(callback);
       console.log(
         `[ClientFileWatcher] Added callback to existing watcher for: ${filePath}`,
       );
     } else {
-      // 建立新的監控器
+      // Create new watcher
       try {
-        // 建立 EventSource 連接到 SSE API
+        // Create EventSource connection to SSE API
         const url = new URL("/api/file/watch", window.location.origin);
         url.searchParams.set("path", filePath);
         url.searchParams.set("basePath", basePath);
@@ -135,15 +135,15 @@ class ClientFileWatcher {
       }
     }
 
-    // 返回清理函數
+    // Return cleanup function
     return () => {
       this.removeCallback(watchKey, callback);
     };
   }
 
   /**
-   * 停止監控指定檔案（移除所有回調）
-   * @param watchKey 監控鍵值
+   * Stop watching specified file (remove all callbacks)
+   * @param watchKey - Watch key
    */
   public unwatchFile(watchKey: string): void {
     const config = this.watchers.get(watchKey);
@@ -152,15 +152,15 @@ class ClientFileWatcher {
       config.eventSource.close();
       this.watchers.delete(watchKey);
 
-      // 清理可能存在的待處理移動檢測
+      // Cleanup any pending move detection
       this.cleanupPendingMove(config.filePath);
     }
   }
 
   /**
-   * 移除指定的回調函數，如果沒有其他回調則停止監控
-   * @param watchKey 監控鍵值
-   * @param callback 要移除的回調函數
+   * Remove specified callback function, stop watching if no other callbacks
+   * @param watchKey - Watch key
+   * @param callback - Callback function to remove
    */
   private removeCallback(watchKey: string, callback: FileWatchCallback): void {
     const config = this.watchers.get(watchKey);
@@ -168,7 +168,7 @@ class ClientFileWatcher {
 
     config.callbacks.delete(callback);
 
-    // 如果沒有其他回調，停止監控
+    // Stop watching if no other callbacks remain
     if (config.callbacks.size === 0) {
       console.log(
         `[ClientFileWatcher] No more callbacks, stopping watch for: ${watchKey}`,
@@ -178,13 +178,13 @@ class ClientFileWatcher {
   }
 
   /**
-   * 設置 SSE 事件處理
-   * @param config 監控器配置
+   * Setup SSE event handling
+   * @param config - Watcher configuration
    */
   private setupSSEEvents(config: WatcherConfig): void {
     const { eventSource, filePath, callbacks } = config;
 
-    // 處理接收到的 SSE 訊息
+    // Handle received SSE messages
     eventSource.onmessage = (event) => {
       try {
         const message: SSEMessage = JSON.parse(event.data);
@@ -206,11 +206,11 @@ class ClientFileWatcher {
           case "unlink":
             console.log(`[ClientFileWatcher] File unlinked: ${filePath}`);
 
-            // 設置延遲檢測，以區分刪除和移動
+            // Setup delayed detection to distinguish between delete and move
             this.pendingMoves.set(filePath, {
               path: filePath,
               timer: setTimeout(() => {
-                // 延遲後確認是真正的刪除
+                // Confirm actual deletion after delay
                 console.log(
                   `[ClientFileWatcher] File confirmed deleted: ${filePath}`,
                 );
@@ -220,17 +220,17 @@ class ClientFileWatcher {
                   file: null,
                 });
                 this.cleanupPendingMove(filePath);
-              }, 500), // 500ms 延遲檢測移動
+              }, 500), // 500ms delay for move detection
             });
             break;
 
           case "add":
             console.log(`[ClientFileWatcher] File added: ${message.filePath}`);
 
-            // 檢查是否是移動操作的結果
+            // Check if this is result of a move operation
             const pendingMove = this.pendingMoves.get(filePath);
             if (pendingMove && message.filePath !== filePath) {
-              // 檢測到移動
+              // Detected a move
               console.log(
                 `[ClientFileWatcher] File moved: ${filePath} -> ${message.filePath}`,
               );
@@ -242,10 +242,10 @@ class ClientFileWatcher {
                 newPath: message.filePath,
               });
 
-              // 更新監控路徑
+              // Update watched path
               config.lastSeenPath = message.filePath;
             } else {
-              // 普通的檔案新增（重新建立）
+              // Normal file addition (recreated)
               this.notifyCallbacks(callbacks, {
                 event: "add",
                 filePath: message.filePath || filePath,
@@ -266,7 +266,7 @@ class ClientFileWatcher {
             break;
 
           case "heartbeat":
-            // 心跳訊息，不需要特別處理
+            // Heartbeat message, no special handling required
             break;
         }
       } catch (error) {
@@ -274,24 +274,24 @@ class ClientFileWatcher {
       }
     };
 
-    // SSE 連接錯誤處理
+    // SSE connection error handling
     eventSource.onerror = () => {
-      // 只在開發環境記錄詳細錯誤，避免生產環境的噪音
+      // Only log detailed errors in development to avoid production noise
       if (process.env.NODE_ENV === "development") {
         console.warn(`[ClientFileWatcher] SSE connection lost for ${filePath}`);
       }
     };
 
-    // SSE 連接開啟事件
+    // SSE connection opened event
     eventSource.onopen = () => {
       console.log(`[ClientFileWatcher] SSE connection opened for: ${filePath}`);
     };
   }
 
   /**
-   * 通知所有回調函數
-   * @param callbacks 回調函數集合
-   * @param data 事件數據
+   * Notify all callback functions
+   * @param callbacks - Callback function set
+   * @param data - Event data
    */
   private notifyCallbacks(
     callbacks: Set<FileWatchCallback>,
@@ -307,8 +307,8 @@ class ClientFileWatcher {
   }
 
   /**
-   * 清理待處理的移動檢測
-   * @param filePath 檔案路徑
+   * Cleanup pending move detection
+   * @param filePath - File path
    */
   private cleanupPendingMove(filePath: string): void {
     const pending = this.pendingMoves.get(filePath);
@@ -319,26 +319,26 @@ class ClientFileWatcher {
   }
 
   /**
-   * 獲取當前監控的檔案列表
-   * @returns 正在監控的檔案路徑陣列
+   * Get list of currently watched files
+   * @returns Array of watched file paths
    */
   public getWatchedFiles(): string[] {
     return Array.from(this.watchers.keys());
   }
 
   /**
-   * 清理所有監控器
+   * Cleanup all watchers
    */
   public cleanup(): void {
     console.log("[ClientFileWatcher] Cleaning up all watchers...");
 
-    // 清理所有監控器
+    // Cleanup all watchers
     this.watchers.forEach((config, _watchKey) => {
       config.eventSource.close();
     });
     this.watchers.clear();
 
-    // 清理待處理的移動檢測
+    // Cleanup pending move detections
     this.pendingMoves.forEach((pending) => {
       clearTimeout(pending.timer);
     });
@@ -348,7 +348,7 @@ class ClientFileWatcher {
   }
 }
 
-// 建立單例實例
+// Create singleton instance
 const clientFileWatcher = new ClientFileWatcher();
 
 export default clientFileWatcher;

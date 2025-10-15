@@ -49,7 +49,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     setExpandedTools(newExpanded);
   };
 
-  // 打字動畫效果
+  // Typing animation effect
   useEffect(() => {
     if (message.content === "..." && isAssistant && isStreaming) {
       const baseText = t("chat.status.typing");
@@ -64,32 +64,32 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       const interval = setInterval(() => {
         setTypingText(states[currentIndex]);
         currentIndex = (currentIndex + 1) % states.length;
-      }, 500); // 每500毫秒切換一次
+      }, 500); // Switch every 500ms
 
       return () => clearInterval(interval);
     }
   }, [message.content, isAssistant, isStreaming, t]);
 
-  // 判斷內容是否為 Markdown
+  // Determine if content is Markdown
   const isMarkdown = (content: string): boolean => {
-    // 簡單的 Markdown 檢測邏輯
+    // Simple Markdown detection logic
     const markdownPatterns = [
-      /^#{1,6}\s/m, // 標題
-      /\*\*.*?\*\*/, // 粗體
-      /\*.*?\*/, // 斜體
-      /```[\s\S]*?```/, // 程式碼區塊
-      /`.*?`/, // 行內程式碼
-      /^\s*[-*+]\s/m, // 清單
-      /^\s*\d+\.\s/m, // 數字清單
-      /\[.*?\]\(.*?\)/, // 連結
-      /\|.*\|/, // 表格
+      /^#{1,6}\s/m, // Headings
+      /\*\*.*?\*\*/, // Bold
+      /\*.*?\*/, // Italic
+      /```[\s\S]*?```/, // Code blocks
+      /`.*?`/, // Inline code
+      /^\s*[-*+]\s/m, // Lists
+      /^\s*\d+\.\s/m, // Numbered lists
+      /\[.*?\]\(.*?\)/, // Links
+      /\|.*\|/, // Tables
     ];
 
     return markdownPatterns.some((pattern) => pattern.test(content));
   };
 
   const renderContent = () => {
-    // 特殊處理思考動畫 - 顯示動態點點效果
+    // Special handling for thinking animation - display dynamic dots effect
     if (message.content === "..." && isAssistant && isStreaming) {
       return (
         <div
@@ -114,11 +114,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
 
     if (isUser || !isMarkdown(message.content)) {
-      // 使用者訊息或非 Markdown 內容，直接顯示
+      // User message or non-Markdown content, display directly
       return <div style={{ whiteSpace: "pre-wrap" }}>{message.content}</div>;
     }
 
-    // AI 訊息且為 Markdown，使用 ReactMarkdown 渲染
+    // AI message and is Markdown, render using ReactMarkdown
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
@@ -424,17 +424,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
   };
 
-  // Terminal 風格設計
+  // Terminal style design
   return (
     <div
       style={{
-        marginBottom: "16px", // 統一間距
+        marginBottom: "16px", // Unified spacing
         fontFamily: 'Monaco, Consolas, "Courier New", monospace',
         fontSize: "14px",
         lineHeight: "1.6",
       }}
     >
-      {/* 使用者輸入 */}
+      {/* User input */}
       {isUser && (
         <div
           style={{
@@ -465,11 +465,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
       )}
 
-      {/* 檔案上下文指示器 - 只對使用者訊息顯示 */}
+      {/* File context indicator - only show for user messages */}
       {isUser && message.currentFile && (
         <div
           style={{
-            marginLeft: "24px", // 與使用者訊息對齊
+            marginLeft: "24px", // Align with user message
             marginTop: "4px",
             marginBottom: "8px",
             padding: "4px 8px",
@@ -499,23 +499,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
       )}
 
-      {/* AI 回應 */}
+      {/* AI response */}
       {isAssistant && (
         <div
           style={{
-            marginLeft: "16px", // 縮排表示 AI 回應
+            marginLeft: "16px", // Indentation indicates AI response
             color: isSystem
               ? darkMode
                 ? "#888"
-                : "#666" // System message 用灰色
+                : "#666" // System message in gray
               : darkMode
                 ? "#e6e6e6"
-                : "#000", // 一般 AI 回應用正常顏色
+                : "#000", // Normal AI response in normal color
           }}
         >
           {renderContent()}
 
-          {/* 工具活動顯示 */}
+          {/* Tool activity display */}
           {renderToolActivities()}
         </div>
       )}

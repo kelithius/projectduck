@@ -5,12 +5,12 @@ import chokidar, { type FSWatcher } from "chokidar";
 import { ProjectConfig, ProjectValidationResult } from "@/lib/types";
 
 /**
- * ProjectConfigCache - 記憶體快取和檔案監視服務
+ * ProjectConfigCache - In-memory cache and file watching service
  *
- * 功能：
- * - 監視 projects.json 檔案變更
- * - 維護 projects 配置的記憶體快取
- * - 提供快速的配置存取介面
+ * Features:
+ * - Monitor projects.json file changes
+ * - Maintain in-memory cache of projects configuration
+ * - Provide fast configuration access interface
  */
 class ProjectConfigCache {
   private cachedConfig:
@@ -25,13 +25,13 @@ class ProjectConfigCache {
   }
 
   /**
-   * 解析配置檔案路徑
-   * 優先順序：環境變數 > 預設值
+   * Resolve configuration file path
+   * Priority: environment variable > default value
    */
   private resolveConfigPath(): string {
     const cwd = process.cwd();
 
-    // 1. 檢查環境變數
+    // 1. Check environment variable
     const envConfigPath =
       process.env.PROJECTS_CONFIG_PATH || process.env.PROJECTS_CONFIG;
     if (envConfigPath) {
@@ -45,15 +45,15 @@ class ProjectConfigCache {
       return resolvedPath;
     }
 
-    // 2. 預設值
+    // 2. Default value
     const defaultPath = join(cwd, "projects.json");
     console.log("[ProjectConfigCache] Using default config:", defaultPath);
     return defaultPath;
   }
 
   /**
-   * 初始化快取服務
-   * 載入初始配置並開始監視檔案
+   * Initialize cache service
+   * Load initial configuration and start file watching
    */
   public initialize(): void {
     if (this.isInitialized) {
@@ -62,30 +62,25 @@ class ProjectConfigCache {
 
     console.log("[ProjectConfigCache] Initializing...");
 
-    try {
-      // 載入初始配置
-      this.loadConfig();
+    // Load initial configuration
+    this.loadConfig();
 
-      // 開始監視檔案
-      this.startWatching();
+    // Start file watching
+    this.startWatching();
 
-      this.isInitialized = true;
-      console.log("[ProjectConfigCache] Initialized successfully");
-    } catch (error) {
-      console.error("[ProjectConfigCache] Initialization failed:", error);
-      throw error;
-    }
+    this.isInitialized = true;
+    console.log("[ProjectConfigCache] Initialized successfully");
   }
 
   /**
-   * 從快取獲取 projects 配置
-   * 如果快取不存在，會嘗試重新載入
-   * 如果未初始化，會自動初始化
+   * Get projects configuration from cache
+   * If cache does not exist, will attempt to reload
+   * If not initialized, will auto-initialize
    */
   public getProjectsFromCache(): ProjectConfig & {
     projects: ProjectValidationResult[];
   } {
-    // 確保已初始化
+    // Ensure initialization
     if (!this.isInitialized) {
       console.log("[ProjectConfigCache] Auto-initializing...");
       this.initialize();
@@ -104,14 +99,14 @@ class ProjectConfigCache {
   }
 
   /**
-   * 檢查快取是否可用
+   * Check if cache is valid
    */
   public isCacheValid(): boolean {
     return this.cachedConfig !== null;
   }
 
   /**
-   * 強制重新載入配置
+   * Force reload configuration
    */
   public reloadConfig(): void {
     console.log("[ProjectConfigCache] Force reloading configuration...");
@@ -119,7 +114,7 @@ class ProjectConfigCache {
   }
 
   /**
-   * 清理資源
+   * Cleanup resources
    */
   public cleanup(): void {
     if (this.watcher) {
@@ -132,63 +127,54 @@ class ProjectConfigCache {
   }
 
   /**
-   * 載入並驗證 projects.json 配置
+   * Load and validate projects.json configuration
    */
   private loadConfig(): void {
-    try {
-      if (!existsSync(this.configPath)) {
-        throw new Error("projects.json configuration file not found");
-      }
-
-      const configContent = readFileSync(this.configPath, "utf-8");
-      let config: ProjectConfig;
-
-      try {
-        config = JSON.parse(configContent);
-      } catch {
-        throw new Error("Invalid JSON format in projects.json");
-      }
-
-      // 驗證基本結構
-      if (!config.version || !Array.isArray(config.projects)) {
-        throw new Error(
-          "Invalid configuration format. Missing required fields: version or projects array",
-        );
-      }
-
-      // 驗證每個專案
-      const validatedProjects: ProjectValidationResult[] = config.projects.map(
-        (project) => {
-          const validation = this.validateProject(project);
-          return {
-            ...project,
-            isValid: validation.isValid,
-            errorMessage: validation.errorMessage,
-          };
-        },
-      );
-
-      // 更新快取
-      this.cachedConfig = {
-        ...config,
-        projects: validatedProjects,
-      };
-
-      console.log(
-        `[ProjectConfigCache] Loaded ${validatedProjects.length} projects from configuration`,
-      );
-    } catch (error) {
-      console.error(
-        "[ProjectConfigCache] Failed to load configuration:",
-        error,
-      );
-      this.cachedConfig = null;
-      throw error;
+    if (!existsSync(this.configPath)) {
+      throw new Error("projects.json configuration file not found");
     }
+
+    const configContent = readFileSync(this.configPath, "utf-8");
+    let config: ProjectConfig;
+
+    try {
+      config = JSON.parse(configContent);
+    } catch {
+      throw new Error("Invalid JSON format in projects.json");
+    }
+
+    // Validate basic structure
+    if (!config.version || !Array.isArray(config.projects)) {
+      throw new Error(
+        "Invalid configuration format. Missing required fields: version or projects array",
+      );
+    }
+
+    // Validate each project
+    const validatedProjects: ProjectValidationResult[] = config.projects.map(
+      (project) => {
+        const validation = this.validateProject(project);
+        return {
+          ...project,
+          isValid: validation.isValid,
+          errorMessage: validation.errorMessage,
+        };
+      },
+    );
+
+    // Update cache
+    this.cachedConfig = {
+      ...config,
+      projects: validatedProjects,
+    };
+
+    console.log(
+      `[ProjectConfigCache] Loaded ${validatedProjects.length} projects from configuration`,
+    );
   }
 
   /**
-   * 驗證單個專案配置
+   * Validate single project configuration
    */
   private validateProject(project: unknown): {
     isValid: boolean;
@@ -239,7 +225,7 @@ class ProjectConfigCache {
   }
 
   /**
-   * 開始監視 projects.json 檔案
+   * Start watching projects.json file
    */
   private startWatching(): void {
     if (this.watcher) {
@@ -282,7 +268,7 @@ class ProjectConfigCache {
             "[ProjectConfigCache] Failed to reload configuration:",
             error,
           );
-          // 保持原有快取，避免應用中斷
+          // Keep existing cache to avoid application interruption
         }
       })
       .on("error", (error) => {
@@ -293,7 +279,7 @@ class ProjectConfigCache {
   }
 }
 
-// 建立單例實例
+// Create singleton instance
 const projectConfigCache = new ProjectConfigCache();
 
 export default projectConfigCache;

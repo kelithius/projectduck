@@ -1,7 +1,7 @@
 export interface FileItem {
   name: string;
   path: string;
-  type: 'file' | 'directory';
+  type: "file" | "directory";
   size?: number;
   modified: string;
   extension?: string;
@@ -52,7 +52,7 @@ export interface ApiError {
   code?: string;
 }
 
-// 專案管理相關類型
+// Project management related types
 export interface Project {
   name: string;
   path: string;
@@ -87,37 +87,37 @@ export interface ProjectsResponse {
   error?: string;
 }
 
-// 檔案監控相關類型
-export type FileWatchStatus = 
-  | 'watching'    // 正在監控
-  | 'changed'     // 檔案已變更，等待重新載入
-  | 'deleted'     // 檔案已刪除
-  | 'moved'       // 檔案已移動
-  | 'error'       // 監控錯誤
-  | 'idle';       // 未監控狀態
+// File watching related types
+export type FileWatchStatus =
+  | "watching" // Currently watching
+  | "changed" // File has been changed, waiting for reload
+  | "deleted" // File has been deleted
+  | "moved" // File has been moved
+  | "error" // Watching error
+  | "idle"; // Not watching state
 
 export interface FileWatchInfo {
   status: FileWatchStatus;
   lastModified?: number;
   error?: string;
-  newPath?: string;  // 檔案移動時的新路徑
+  newPath?: string; // New path when file is moved
 }
 
-// 目錄監控相關類型
-export type DirectoryWatchEventType = 
-  | 'connected'   // SSE 連接建立
-  | 'add'         // 檔案新增
-  | 'addDir'      // 資料夾新增
-  | 'change'      // 檔案變更
-  | 'unlink'      // 檔案刪除
-  | 'unlinkDir'   // 資料夾刪除
-  | 'error'       // 監控錯誤
-  | 'heartbeat';  // 心跳訊號
+// Directory watching related types
+export type DirectoryWatchEventType =
+  | "connected" // SSE connection established
+  | "add" // File added
+  | "addDir" // Directory added
+  | "change" // File changed
+  | "unlink" // File deleted
+  | "unlinkDir" // Directory deleted
+  | "error" // Watching error
+  | "heartbeat"; // Heartbeat signal
 
 export interface DirectoryWatchEvent {
   type: DirectoryWatchEventType;
-  path?: string;          // 完整路徑
-  relativePath?: string;  // 相對於監控根目錄的路徑
+  path?: string; // Full path
+  relativePath?: string; // Path relative to the watch root directory
   stats?: {
     isFile: boolean;
     isDirectory: boolean;
@@ -130,28 +130,28 @@ export interface DirectoryWatchEvent {
 
 export type DirectoryWatchCallback = (event: DirectoryWatchEvent) => void;
 
-// 目錄監控器配置
+// Directory watcher configuration
 export interface DirectoryWatcherConfig {
-  basePath: string;           // 監控的基礎路徑
-  targetPath: string;         // 目標子路徑（相對於 basePath）
-  recursive: boolean;         // 是否遞迴監控
+  basePath: string; // Base path for watching
+  targetPath: string; // Target sub-path (relative to basePath)
+  recursive: boolean; // Whether to watch recursively
   callback: DirectoryWatchCallback;
 }
 
-// Tree 節點操作類型
-export type TreeNodeOperation = 
-  | 'add'       // 新增節點
-  | 'remove'    // 移除節點
-  | 'update'    // 更新節點
-  | 'move';     // 移動節點
+// Tree node operation types
+export type TreeNodeOperation =
+  | "add" // Add node
+  | "remove" // Remove node
+  | "update" // Update node
+  | "move"; // Move node
 
 export interface TreeNodeOperationData {
   operation: TreeNodeOperation;
-  parentKey: string;        // 父節點的 key
-  nodeKey: string;          // 節點的 key
-  nodeData?: FileItem;      // 節點資料（新增/更新時使用）
-  newParentKey?: string;    // 新父節點 key（移動時使用）
-  newNodeKey?: string;      // 新節點 key（重新命名時使用）
+  parentKey: string; // Parent node key
+  nodeKey: string; // Node key
+  nodeData?: FileItem; // Node data (used when adding/updating)
+  newParentKey?: string; // New parent node key (used when moving)
+  newNodeKey?: string; // New node key (used when renaming)
 }
 
 export interface AppState {
@@ -161,22 +161,22 @@ export interface AppState {
     selectedFile: string | null;
     loading: boolean;
   };
-  
+
   contentViewer: {
     currentFile: FileItem | null;
     content: string | null;
     loading: boolean;
     error: string | null;
-    // 新增檔案監控狀態
+    // File watching status
     watchInfo: FileWatchInfo;
   };
-  
+
   ui: {
     sidebarWidth: number;
     collapsedSections: string[];
-    theme: 'light' | 'dark';
+    theme: "light" | "dark";
   };
 
-  // 專案狀態
+  // Project state
   projects: ProjectContextState;
 }

@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Space, Typography, Tooltip } from 'antd';
-import { FolderOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { ProjectValidationResult } from '@/lib/types';
-import { useTranslation } from 'react-i18next';
-import styles from '@/styles/project-sidebar.module.css';
-import { useDesignTokens, useThemedStyles } from '@/lib/design/useDesignTokens';
+import React, { useState } from "react";
+import { Space, Typography, Tooltip } from "antd";
+import { FolderOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { ProjectValidationResult } from "@/lib/types";
+import { useTranslation } from "react-i18next";
+import styles from "@/styles/project-sidebar.module.css";
+import { useDesignTokens, useThemedStyles } from "@/lib/design/useDesignTokens";
 
 const { Text } = Typography;
 
@@ -23,7 +23,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   isActive,
   onClick,
   isDark,
-  disabled = false
+  disabled = false,
 }) => {
   const { t } = useTranslation();
   const tokens = useDesignTokens();
@@ -32,34 +32,40 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
 
   const getStatusIcon = () => {
     const containerStyle = {
-      width: '20px',
-      height: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative' as const
+      width: "20px",
+      height: "20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative" as const,
     };
 
     const iconStyle = {
-      fontSize: '16px',
-      lineHeight: '1',
-      position: 'absolute' as const,
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%)'
+      fontSize: "16px",
+      lineHeight: "1",
+      position: "absolute" as const,
+      left: "50%",
+      top: "50%",
+      transform: "translate(-50%, -50%)",
     };
 
     if (!project.isValid) {
       return (
         <div style={containerStyle}>
-          <ExclamationCircleOutlined style={{ ...iconStyle, color: tokens.colors.status.error }} />
+          <ExclamationCircleOutlined
+            style={{ ...iconStyle, color: tokens.colors.status.error }}
+          />
         </div>
       );
     } else {
-      // 無論選中與否都使用 FolderOutlined，只改變顏色
-      const color = isActive 
-        ? (isDark ? tokens.colors.text.primary : tokens.semantic.antd.primary)  // 選中時的顏色
-        : (isDark ? tokens.colors.text.secondary : tokens.semantic.antd.primary); // 未選中時的顏色
+      // Always use FolderOutlined regardless of selection state, only change color
+      const color = isActive
+        ? isDark
+          ? tokens.colors.text.primary
+          : tokens.semantic.antd.primary // Color when selected
+        : isDark
+          ? tokens.colors.text.secondary
+          : tokens.semantic.antd.primary; // Color when not selected
       return (
         <div style={containerStyle}>
           <FolderOutlined style={{ ...iconStyle, color }} />
@@ -69,53 +75,57 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
   };
 
   const getItemStyle = (): React.CSSProperties => {
-    const backgroundColor = themedStyles.projectItemBg(isActive, isHovered && !disabled);
+    const backgroundColor = themedStyles.projectItemBg(
+      isActive,
+      isHovered && !disabled,
+    );
 
     return {
-      backgroundColor
+      backgroundColor,
     };
   };
 
   const titleStyle = {
-    fontSize: '14px',
+    fontSize: "14px",
     fontWeight: isActive ? 600 : 500,
-    color: disabled && !isActive
-      ? tokens.colors.text.disabled
-      : isActive 
-        ? (isDark ? tokens.colors.text.primary : tokens.semantic.antd.primary)
-        : tokens.colors.text.primary,
+    color:
+      disabled && !isActive
+        ? tokens.colors.text.disabled
+        : isActive
+          ? isDark
+            ? tokens.colors.text.primary
+            : tokens.semantic.antd.primary
+          : tokens.colors.text.primary,
     margin: 0,
-    lineHeight: '20px'
+    lineHeight: "20px",
   };
 
-
-
   const errorStyle = {
-    fontSize: '11px',
+    fontSize: "11px",
     color: tokens.colors.status.error,
-    margin: '2px 0 0 0',
-    lineHeight: '14px'
+    margin: "2px 0 0 0",
+    lineHeight: "14px",
   };
 
   const content = (
-    <div style={{ width: '100%' }}>
-      <Space align="start" size={12} style={{ width: '100%' }}>
-        <div style={{ 
-          marginTop: '2px',
-          flexShrink: 0
-        }}>
+    <div style={{ width: "100%" }}>
+      <Space align="start" size={12} style={{ width: "100%" }}>
+        <div
+          style={{
+            marginTop: "2px",
+            flexShrink: 0,
+          }}
+        >
           {getStatusIcon()}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div>
-            <Text style={titleStyle}>
-              {project.name}
-            </Text>
+            <Text style={titleStyle}>{project.name}</Text>
           </div>
           {!project.isValid && project.errorMessage && (
             <div>
               <Text style={errorStyle}>
-                {t('project.item.error')}: {project.errorMessage}
+                {t("project.item.error")}: {project.errorMessage}
               </Text>
             </div>
           )}
@@ -128,20 +138,20 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
     const classes = [styles.projectItem];
     if (isActive) classes.push(styles.active);
     if (disabled) classes.push(styles.disabled);
-    return classes.join(' ');
+    return classes.join(" ");
   };
 
   if (disabled) {
     return (
-      <Tooltip 
-        title={project.errorMessage || t('project.item.unavailable')}
+      <Tooltip
+        title={project.errorMessage || t("project.item.unavailable")}
         placement="right"
       >
-        <div 
+        <div
           style={{
             ...getItemStyle(),
-            cursor: 'not-allowed',
-            userSelect: 'none'
+            cursor: "not-allowed",
+            userSelect: "none",
           }}
           className={getClassName()}
         >
@@ -155,8 +165,8 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
     <div
       style={{
         ...getItemStyle(),
-        cursor: disabled ? 'not-allowed' : isActive ? 'default' : 'pointer',
-        userSelect: 'none'
+        cursor: disabled ? "not-allowed" : isActive ? "default" : "pointer",
+        userSelect: "none",
       }}
       onClick={disabled ? undefined : onClick}
       className={getClassName()}

@@ -26,9 +26,9 @@ import styles from "./FileTree.module.css";
 
 interface FileTreeProps {
   onFileSelect: (file: FileItem | null) => void;
-  selectedFile?: FileItem | null; // 當前選中的檔案
+  selectedFile?: FileItem | null; // Currently selected file
   darkMode?: boolean;
-  resetTrigger?: number; // 用於觸發重置的 prop
+  resetTrigger?: number; // Prop used to trigger reset
 }
 
 const FileTreeComponent: React.FC<FileTreeProps> = ({
@@ -126,7 +126,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
 
     const isLoading = loadingNodes.has(nodeData.key?.toString() || "");
 
-    // 高亮搜尋文字
+    // Highlight search text
     const renderHighlightText = (text: string, searchTerm: string) => {
       if (!searchTerm) return text;
 
@@ -188,7 +188,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     );
   };
 
-  // 停止監控目錄
+  // Stop directory watching
   const stopDirectoryWatch = useCallback(() => {
     if (watchCleanupRef.current) {
       console.log("[FileTree] Stopping directory watch");
@@ -199,7 +199,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
   }, []);
 
   const resetFileTree = useCallback(() => {
-    // 停止目錄監控
+    // Stop directory monitoring
     stopDirectoryWatch();
 
     setTreeData([]);
@@ -209,7 +209,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     setLoadingNodes(new Set());
     setOperationInProgress(null);
 
-    // 重置時清除選中的檔案
+    // Clear selected file on reset
     onFileSelect(null);
   }, [onFileSelect, stopDirectoryWatch]);
 
@@ -217,7 +217,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     try {
       setLoading(true);
 
-      // 確保 getCurrentBasePath 返回的是字串而不是 Promise
+      // Ensure getCurrentBasePath returns a string instead of Promise
       let currentBasePath: string;
       try {
         currentBasePath = getCurrentBasePath();
@@ -254,7 +254,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
       const { key } = node;
 
       try {
-        // 確保 getCurrentBasePath 返回的是字串而不是 Promise
+        // Ensure getCurrentBasePath returns a string instead of Promise
         let currentBasePath: string;
         try {
           currentBasePath = getCurrentBasePath();
@@ -287,7 +287,6 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
         message.error(t("fileTree.loadingError"));
         console.error("Failed to load subdirectory:", error);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [getCurrentBasePath, message, t],
   );
@@ -333,11 +332,11 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
             nodeTitle &&
             nodeTitle.toLowerCase().includes(value.toLowerCase())
           ) {
-            // 找到匹配項目，展開其所有父級路徑
+            // Found match, expand all parent paths
             if (parentKey && !expandKeys.includes(parentKey)) {
               expandKeys.push(parentKey);
             }
-            // 如果匹配的是資料夾，也要展開該資料夾本身
+            // If match is a directory, also expand the directory itself
             if (
               node.data?.type === "directory" &&
               !expandKeys.includes(node.key as string)
@@ -364,7 +363,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     setAutoExpandParent(false);
   }, []);
 
-  // 智慧更新樹節點 - 保持展開狀態
+  // Smart update tree node - maintain expanded state
   const smartUpdateTreeNode = useCallback(
     (operation: TreeNodeOperationData) => {
       const {
@@ -405,22 +404,21 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
             return prevData;
         }
       });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [],
   );
 
-  // 添加節點到樹中
+  // Add node to tree
   const addNodeToTree = (
     nodes: TreeDataNode[],
     parentKey: string,
     nodeData: FileItem,
   ): TreeDataNode[] => {
     if (parentKey === "") {
-      // 添加到根級
+      // Add to root level
       const newNode = fileItemToTreeNode(nodeData);
       return [...nodes, newNode].sort((a: TreeDataNode, b: TreeDataNode) => {
-        // 資料夾在前，檔案在後，同類型按字母順序
+        // Directories first, files second, alphabetical order within same type
         const aIsDir = a.data?.type === "directory";
         const bIsDir = b.data?.type === "directory";
         if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
@@ -453,14 +451,14 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     });
   };
 
-  // 從樹中移除節點
+  // Remove node from tree
   const removeNodeFromTree = (
     nodes: TreeDataNode[],
     nodeKey: string,
   ): TreeDataNode[] => {
     return nodes.filter((node) => {
       if (node.key === nodeKey) {
-        return false; // 移除此節點
+        return false; // Remove this node
       }
 
       if (node.children) {
@@ -471,7 +469,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     });
   };
 
-  // 更新樹中的節點
+  // Update node in tree
   const updateNodeInTree = (
     nodes: TreeDataNode[],
     nodeKey: string,
@@ -479,7 +477,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
   ): TreeDataNode[] => {
     return nodes.map((node) => {
       if (node.key === nodeKey) {
-        // 更新節點數據，但保持其他屬性
+        // Update node data while maintaining other properties
         return {
           ...node,
           title: nodeData.name,
@@ -498,7 +496,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     });
   };
 
-  // 移動樹中的節點
+  // Move node in tree
   const moveNodeInTree = (
     nodes: TreeDataNode[],
     nodeKey: string,
@@ -506,7 +504,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     newParentKey: string,
     newNodeKey?: string,
   ): TreeDataNode[] => {
-    // 先找到要移動的節點
+    // First find the node to move
     let nodeToMove: TreeDataNode | null = null;
 
     const findAndRemoveNode = (
@@ -528,10 +526,10 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
 
     let updatedNodes = findAndRemoveNode([...nodes]);
 
-    // 如果找到了節點，將其添加到新位置
+    // If node was found, add it to new location
     if (nodeToMove && (nodeToMove as TreeDataNode).data) {
       const node = nodeToMove as TreeDataNode;
-      // 更新節點的 key（如果有重新命名）
+      // Update node key (if renamed)
       if (newNodeKey) {
         nodeToMove = {
           ...node,
@@ -546,11 +544,11 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     return updatedNodes;
   };
 
-  // 自動展開到選中檔案的路徑
+  // Auto-expand to selected file path
   const expandToSelectedFile = useCallback((selectedFilePath: string) => {
     if (!selectedFilePath) return;
 
-    // 獲取檔案路徑的所有父目錄
+    // Get all parent directories of file path
     const pathParts = selectedFilePath.split("/");
     const expandKeys: string[] = [];
 
@@ -578,7 +576,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     }
   }, []);
 
-  // 處理目錄變動事件
+  // Handle directory change events
   const handleDirectoryWatchEvent = useCallback(
     (event: DirectoryWatchEvent) => {
       console.log(`[FileTree] handleDirectoryWatchEvent called with:`, event);
@@ -598,27 +596,27 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
         event,
       );
 
-      // 清除相關的 API 快取
+      // Clear related API cache
       if (relativePath) {
         const basePath = getCurrentBasePath();
         const parentPath = relativePath.includes("/")
           ? relativePath.substring(0, relativePath.lastIndexOf("/"))
           : "";
 
-        // 清除當前目錄的快取
+        // Clear current directory cache
         const cacheKey = basePath
           ? `directory:${basePath}:${relativePath}`
           : `directory:${relativePath}`;
         cacheService.delete(cacheKey);
 
-        // 清除父目錄的快取（如果有的話）
+        // Clear parent directory cache (if exists)
         if (parentPath) {
           const parentCacheKey = basePath
             ? `directory:${basePath}:${parentPath}`
             : `directory:${parentPath}`;
           cacheService.delete(parentCacheKey);
         } else {
-          // 如果沒有父目錄，清除根目錄快取
+          // If no parent directory, clear root directory cache
           const rootCacheKey = basePath
             ? `directory:${basePath}:`
             : `directory:`;
@@ -663,7 +661,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
                 nodeData: newFileItem,
               });
 
-              // 如果當前有選中檔案，確保展開狀態正確
+              // If a file is currently selected, ensure expand state is correct
               if (selectedFile) {
                 setTimeout(() => expandToSelectedFile(selectedFile.path), 100);
               }
@@ -672,7 +670,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
 
           case "unlink":
           case "unlinkDir":
-            // 如果被刪除的檔案是當前選中的檔案，清除選擇
+            // If deleted file is the currently selected file, clear selection
             if (selectedFile && selectedFile.path === relativePath) {
               onFileSelect(null);
             }
@@ -685,7 +683,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
             break;
 
           case "change":
-            // 檔案內容變更，更新修改時間
+            // File content changed, update modification time
             if (stats) {
               const updatedFileItem: FileItem = {
                 name: fileName,
@@ -715,12 +713,11 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
       } catch (error) {
         console.error(`[FileTree] Error handling directory event:`, error);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [getCurrentBasePath, message, smartUpdateTreeNode],
   );
 
-  // 開始監控目錄
+  // Start directory watching
   const startDirectoryWatch = useCallback(() => {
     if (isWatchingDirectory || !currentProject) return;
 
@@ -735,7 +732,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
 
       const cleanup = directoryWatcher.watchDirectory({
         basePath,
-        targetPath: "", // 監控根目錄
+        targetPath: "", // Watch root directory
         recursive: true,
         callback: handleDirectoryWatchEvent,
       });
@@ -756,28 +753,28 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     let isCancelled = false;
 
     const loadRoot = async () => {
-      // 等待專案載入完成
+      // Wait for project to finish loading
       if (projectLoading) {
-        // 專案還在載入中，確保顯示載入狀態
+        // Project still loading, ensure loading state is displayed
         setLoading(true);
         return;
       }
 
-      // 專案載入完成後的處理
+      // Handle after project loading completes
       if (!isCancelled && currentProject) {
-        // 有可用專案，載入目錄
+        // Project available, load directory
         await loadRootDirectory();
 
-        // 載入完成後開始監控目錄
+        // Start directory watching after loading completes
         if (!isCancelled) {
           startDirectoryWatch();
         }
       } else if (!isCancelled && !currentProject) {
-        // 專案載入完成但沒有可用專案時顯示錯誤
+        // Show error when project loading completes but no project available
         setLoading(false);
         message.error(t("fileTree.noProject", "沒有可用的專案"));
 
-        // 停止任何現有的目錄監控
+        // Stop any existing directory watching
         stopDirectoryWatch();
       }
     };
@@ -790,21 +787,21 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectLoading, currentProject, startDirectoryWatch, stopDirectoryWatch]);
 
-  // 監聽 resetTrigger 變化
+  // Listen to resetTrigger changes
   useEffect(() => {
     if (resetTrigger !== undefined) {
       resetFileTree();
-      // 不使用 setTimeout，讓 React 的狀態更新週期處理
-      // loadRootDirectory 會在主要的 useEffect 中被觸發
+      // Don't use setTimeout, let React's state update cycle handle it
+      // loadRootDirectory will be triggered in main useEffect
     }
   }, [resetTrigger, resetFileTree]);
 
-  // 監聽專案變更事件
+  // Listen to project change events
   useEffect(() => {
     const handleProjectChange = () => {
       resetFileTree();
-      // 不使用 setTimeout，讓 React 的狀態更新週期處理
-      // loadRootDirectory 會在主要的 useEffect 中被觸發
+      // Don't use setTimeout, let React's state update cycle handle it
+      // loadRootDirectory will be triggered in main useEffect
     };
 
     window.addEventListener("projectChange", handleProjectChange);
@@ -814,7 +811,7 @@ const FileTreeComponent: React.FC<FileTreeProps> = ({
     };
   }, [resetFileTree]);
 
-  // 組件卸載時清理監控器
+  // Cleanup watcher on component unmount
   useEffect(() => {
     return () => {
       stopDirectoryWatch();

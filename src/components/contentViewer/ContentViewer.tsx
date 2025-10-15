@@ -33,7 +33,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   const [watchInfo, setWatchInfo] = useState<FileWatchInfo>({ status: "idle" });
   const [showMarkmap, setShowMarkmap] = useState(false);
 
-  // 使用 ref 來保存清理函數，避免在依賴陣列中引起重新渲染
+  // Use ref to store cleanup function, avoid re-rendering in dependency array
   const watchCleanupRef = useRef<(() => void) | null>(null);
   const currentFilePathRef = useRef<string | null>(null);
 
@@ -127,7 +127,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  // 檔案監控事件處理
+  // File watch event handler
   const handleFileWatchEvent = useCallback(
     (eventData: FileWatchEventData) => {
       console.log("[ContentViewer] File watch event:", eventData);
@@ -138,7 +138,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
             status: "changed",
             lastModified: Date.now(),
           });
-          // 自動重新載入檔案內容（強制刷新）
+          // Automatically reload file content (force refresh)
           if (selectedFile) {
             loadFileContent(selectedFile, true);
           }
@@ -163,7 +163,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
           break;
 
         case "add":
-          // 檔案重新出現（可能是從回收站恢復或重新建立）
+          // File reappeared (possibly restored from trash or recreated)
           setWatchInfo({
             status: "changed",
             lastModified: Date.now(),
@@ -177,12 +177,11 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
           });
           break;
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [selectedFile, t],
   );
 
-  // 開始監控檔案
+  // Start watching file
   const startWatchingFile = useCallback(
     (filePath: string, basePath: string) => {
       console.log(
@@ -192,13 +191,13 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
         basePath,
       );
 
-      // 停止之前的監控
+      // Stop previous watch
       if (watchCleanupRef.current) {
         watchCleanupRef.current();
         watchCleanupRef.current = null;
       }
 
-      // 開始新的監控
+      // Start new watch
       try {
         const cleanup = clientFileWatcher.watchFile(
           filePath,
@@ -224,7 +223,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     [handleFileWatchEvent],
   );
 
-  // 停止監控檔案
+  // Stop watching file
   const stopWatchingFile = useCallback(() => {
     console.log("[ContentViewer] Stopping file watch");
 
@@ -237,7 +236,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     setWatchInfo({ status: "idle" });
   }, []);
 
-  // 忽略檔案變更（關閉變更通知）
+  // Dismiss file change (close change notification)
   const dismissFileChange = useCallback(() => {
     if (watchInfo.status === "changed") {
       setWatchInfo({
@@ -251,7 +250,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     if (selectedFile) {
       loadFileContent(selectedFile);
 
-      // 只對檔案類型啟動監控，目錄類型不需要監控
+      // Only enable watch for file types, directory types don't need watching
       if (selectedFile.type === "file") {
         const currentBasePath = getCurrentBasePath();
         if (currentBasePath) {
@@ -266,7 +265,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFile, getCurrentBasePath, startWatchingFile, stopWatchingFile]);
 
-  // 清理資源
+  // Cleanup resources
   useEffect(() => {
     return () => {
       stopWatchingFile();
@@ -296,7 +295,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
 
   const fileType = getFileType(selectedFile);
 
-  // 根據監控狀態顯示不同的狀態指示器
+  // Display different status indicators based on watch status
   const renderWatchStatus = () => {
     if (watchInfo.status === "idle" || watchInfo.status === "watching") {
       return null;
@@ -370,7 +369,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* 檔案狀態通知 */}
+      {/* File status notification */}
       {renderWatchStatus()}
 
       <Card

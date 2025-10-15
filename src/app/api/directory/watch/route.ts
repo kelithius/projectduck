@@ -1,19 +1,19 @@
 /**
- * 目錄監控 SSE API
+ * Directory Watch SSE API
  *
- * 提供 Server-Sent Events 來即時通知客戶端目錄變更
- * 包含檔案/資料夾的新增、刪除、重新命名、移動等操作
+ * Provides Server-Sent Events for real-time directory change notifications to clients
+ * Includes file/folder add, delete, rename, and move operations
  */
 import { NextRequest, NextResponse } from "next/server";
 import chokidar, { type FSWatcher } from "chokidar";
 import { existsSync, statSync } from "fs";
 import path from "path";
 
-// 儲存活躍的監控器和客戶端連接
+// Store active watchers and client connections
 const activeWatchers = new Map<string, FSWatcher>();
 const clientConnections = new Map<string, ReadableStreamDefaultController>();
 
-// 目錄變動事件類型
+// Directory watch event types
 export interface DirectoryWatchEvent {
   type:
     | "connected"
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetPath = searchParams.get("path") || "";
   const basePath = searchParams.get("basePath");
-  const recursive = searchParams.get("recursive") !== "false"; // 預設為 true
+  const recursive = searchParams.get("recursive") !== "false"; // Default to true
 
   if (!basePath) {
     return NextResponse.json(
@@ -50,12 +50,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 建構完整路徑
+    // Construct full path
     const fullPath = path.isAbsolute(targetPath)
       ? targetPath
       : path.join(basePath, targetPath);
 
-    // 檢查目錄是否存在
+    // Check if directory exists
     if (!existsSync(fullPath)) {
       return NextResponse.json(
         { success: false, error: "Directory not found" },
@@ -73,13 +73,13 @@ export async function GET(request: NextRequest) {
 
     console.log("[DirectoryWatch SSE] Starting directory watch for:", fullPath);
 
-    // 建立 SSE 串流
+    // Create SSE stream
     const stream = new ReadableStream({
       start(controller) {
         const watcherId = Math.random().toString(36).substr(2, 9);
         clientConnections.set(watcherId, controller);
 
-        // 初始化連接
+        // Initialize connection
         const connectEvent: DirectoryWatchEvent = {
           type: "connected",
           path: fullPath,
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
         controller.enqueue(`data: ${JSON.stringify(connectEvent)}\n\n`);
 
-        // 建立 chokidar 監控器
+        // Create chokidar watcher
         const watchPath = recursive ? fullPath : path.join(fullPath, "*");
         const watcher = chokidar.watch(watchPath, {
           persistent: true,
@@ -98,12 +98,12 @@ export async function GET(request: NextRequest) {
             stabilityThreshold: 100,
             pollInterval: 50,
           },
-          depth: recursive ? undefined : 1, // 控制遞迴深度
+          depth: recursive ? undefined : 1, // Control recursion depth
           followSymlinks: false,
-          alwaysStat: true, // 提供檔案統計資訊
+          alwaysStat: true, // Provide file statistics
         });
 
-        // 檔案新增事件
+        // File add event
         watcher.on("add", (addedPath: string, stats?: unknown) => {
           const relativePath = path.relative(fullPath, addedPath);
           console.log("[DirectoryWatch SSE] File added:", relativePath);
@@ -127,10 +127,10 @@ export async function GET(request: NextRequest) {
           controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
         });
 
-        // 資料夾新增事件
+        // Directory add event
         watcher.on("addDir", (addedPath: string, stats?: unknown) => {
           const relativePath = path.relative(fullPath, addedPath);
-          // 忽略根目錄本身
+          // Ignore root directory itself
           if (relativePath === "") return;
 
           console.log("[DirectoryWatch SSE] Directory added:", relativePath);
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
         });
 
-        // 檔案變更事件
+        // File change event
         watcher.on("change", (changedPath: string, stats?: unknown) => {
           const relativePath = path.relative(fullPath, changedPath);
           console.log("[DirectoryWatch SSE] File changed:", relativePath);
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
         });
 
-        // 檔案刪除事件
+        // File delete event
         watcher.on("unlink", (removedPath: string) => {
           const relativePath = path.relative(fullPath, removedPath);
           console.log("[DirectoryWatch SSE] File deleted:", relativePath);
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
         });
 
-        // 資料夾刪除事件
+        // Directory delete event
         watcher.on("unlinkDir", (removedPath: string) => {
           const relativePath = path.relative(fullPath, removedPath);
           console.log("[DirectoryWatch SSE] Directory deleted:", relativePath);
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
         });
 
-        // 監控錯誤
+        // Watcher error
         watcher.on("error", (err: unknown) => {
           const error = err instanceof Error ? err : new Error(String(err));
           console.error("[DirectoryWatch SSE] Watcher error:", error);
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
 
         activeWatchers.set(watcherId, watcher);
 
-        // 處理連接關閉
+        // Handle connection close
         const cleanup = () => {
           console.log("[DirectoryWatch SSE] Cleaning up watcher:", watcherId);
           watcher.close();
@@ -238,10 +238,10 @@ export async function GET(request: NextRequest) {
           clientConnections.delete(watcherId);
         };
 
-        // 監聽連接關閉
+        // Listen for connection close
         request.signal?.addEventListener("abort", cleanup);
 
-        // 設置定時心跳檢測
+        // Setup periodic heartbeat check
         const heartbeat = setInterval(() => {
           try {
             const heartbeatEvent: DirectoryWatchEvent = {
@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
             clearInterval(heartbeat);
             cleanup();
           }
-        }, 30000); // 30秒心跳
+        }, 30000); // 30 second heartbeat
       },
 
       cancel() {
@@ -289,7 +289,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 清理所有監控器的工具函數
+// Utility function to clean up all watchers
 function cleanupAllDirectoryWatchers() {
   console.log("[DirectoryWatch SSE] Cleaning up all directory watchers...");
 
@@ -305,7 +305,7 @@ function cleanupAllDirectoryWatchers() {
   clientConnections.clear();
 }
 
-// 處理程序退出時的清理
+// Handle cleanup on process exit
 if (typeof process !== "undefined") {
   process.on("SIGINT", cleanupAllDirectoryWatchers);
   process.on("SIGTERM", cleanupAllDirectoryWatchers);

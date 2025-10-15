@@ -20,19 +20,19 @@ export class SecurityService {
   private static securityLogs: SecurityLog[] = [];
   private static readonly MAX_LOGS = 1000;
 
-  // 惡意路徑模式檢測
+  // Malicious path pattern detection
   private static readonly MALICIOUS_PATTERNS = [
-    /\.\./g, // 路徑遍歷
-    /~+/g, // 家目錄符號
-    /%2e%2e/gi, // URL編碼的 ..
-    /%2f/gi, // URL編碼的 /
-    /%5c/gi, // URL編碼的 \
-    /\0/g, // 空字元
-    /[<>"|*?:]/g, // 檔名非法字元
-    /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i, // Windows 保留檔名
+    /\.\./g, // Path traversal
+    /~+/g, // Home directory symbol
+    /%2e%2e/gi, // URL-encoded ..
+    /%2f/gi, // URL-encoded /
+    /%5c/gi, // URL-encoded \
+    /\0/g, // Null character
+    /[<>"|*?:]/g, // Invalid filename characters
+    /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i, // Windows reserved filenames
   ];
 
-  // 允許的隱藏檔案白名單
+  // Allowed hidden files whitelist
   private static readonly ALLOWED_HIDDEN_FILES = [
     "gitignore",
     "env",
@@ -43,16 +43,16 @@ export class SecurityService {
     "node-version",
   ];
 
-  // 危險可執行檔案檢測 (分離出來避免阻擋必要檔案)
+  // Dangerous executable file detection (separated to avoid blocking necessary files)
   private static readonly DANGEROUS_EXECUTABLES = [
-    /\.(exe|bat|cmd|scr|pif|com|dll|vbs|jar)$/i, // Windows 可執行檔
+    /\.(exe|bat|cmd|scr|pif|com|dll|vbs|jar)$/i, // Windows executables
     /\.(ps1|psm1|psd1)$/i, // PowerShell
     /\.(msi|msp)$/i, // Windows Installer
-    /\.(app|dmg|pkg)$/i, // macOS 執行檔
+    /\.(app|dmg|pkg)$/i, // macOS executables
   ];
 
   /**
-   * 記錄安全事件
+   * Log security events
    */
   private static logSecurityEvent(log: Omit<SecurityLog, "timestamp">): void {
     const securityLog: SecurityLog = {
@@ -62,12 +62,12 @@ export class SecurityService {
 
     this.securityLogs.unshift(securityLog);
 
-    // 限制記錄大小
+    // Limit log size
     if (this.securityLogs.length > this.MAX_LOGS) {
       this.securityLogs = this.securityLogs.slice(0, this.MAX_LOGS);
     }
 
-    // 記錄到 console (生產環境可以改為發送到監控系統)
+    // Log to console (can be changed to send to monitoring system in production)
     const logLevel =
       log.severity === "critical" || log.severity === "high" ? "error" : "warn";
     console[logLevel](`[SecurityService] ${log.type.toUpperCase()}:`, {
@@ -78,19 +78,19 @@ export class SecurityService {
   }
 
   /**
-   * URL 解碼和正規化處理 (防止編碼繞過)
+   * URL decoding and normalization (prevents encoding bypass)
    */
   private static sanitizePath(requestPath: string): string {
     let sanitized = requestPath;
 
-    // 多層 URL 解碼 (防止雙重編碼繞過)
+    // Multi-layer URL decoding (prevents double encoding bypass)
     let previous = "";
     while (previous !== sanitized) {
       previous = sanitized;
       try {
         sanitized = decodeURIComponent(sanitized);
       } catch {
-        // 如果解碼失敗，視為可疑請求
+        // If decoding fails, treat as suspicious request
         this.logSecurityEvent({
           type: "malicious_pattern",
           requestPath: requestPath,
@@ -101,35 +101,35 @@ export class SecurityService {
       }
     }
 
-    // 正規化路徑
+    // Normalize path
     sanitized = path.normalize(sanitized);
 
     return sanitized;
   }
 
   /**
-   * 檢查隱藏檔案是否允許 (嚴格匹配)
+   * Check if hidden file is allowed (strict matching)
    */
   private static isAllowedHiddenFile(filename: string): boolean {
     if (!filename.startsWith(".")) {
-      return true; // 不是隱藏檔案
+      return true; // Not a hidden file
     }
 
     const nameWithoutDot = filename.substring(1);
 
-    // 嚴格匹配：只允許確切的檔名或確切的副檔名模式
+    // Strict matching: only allow exact filenames or exact extension patterns
     return this.ALLOWED_HIDDEN_FILES.some((allowed) => {
-      // 完全匹配 (.gitignore)
+      // Exact match (.gitignore)
       if (nameWithoutDot === allowed) return true;
 
-      // 只允許特定的副檔名模式 (.eslintrc.js, .prettierrc.json 等)
+      // Only allow specific extension patterns (.eslintrc.js, .prettierrc.json, etc.)
       if (allowed === "eslintrc" || allowed === "prettierrc") {
         return nameWithoutDot.match(
           new RegExp(`^${allowed}\\.(js|json|yml|yaml)$`),
         );
       }
 
-      // .env 只允許特定模式 (.env.local, .env.development 等)
+      // .env only allows specific patterns (.env.local, .env.development, etc.)
       if (allowed === "env") {
         return nameWithoutDot.match(
           /^env\.(local|development|staging|production)$/,
@@ -141,10 +141,10 @@ export class SecurityService {
   }
 
   /**
-   * 檢查惡意模式
+   * Check for malicious patterns
    */
   private static checkMaliciousPatterns(requestPath: string): void {
-    // 檢查基本惡意模式
+    // Check basic malicious patterns
     for (const pattern of this.MALICIOUS_PATTERNS) {
       if (pattern.test(requestPath)) {
         this.logSecurityEvent({
@@ -157,7 +157,7 @@ export class SecurityService {
       }
     }
 
-    // 檢查隱藏檔案
+    // Check hidden files
     const pathSegments = requestPath.split(path.sep);
     for (const segment of pathSegments) {
       if (segment.startsWith(".") && !this.isAllowedHiddenFile(segment)) {
@@ -173,7 +173,7 @@ export class SecurityService {
   }
 
   /**
-   * 檢查危險可執行檔案
+   * Check for dangerous executable files
    */
   private static checkDangerousExecutables(filePath: string): void {
     for (const pattern of this.DANGEROUS_EXECUTABLES) {
@@ -190,7 +190,7 @@ export class SecurityService {
   }
 
   /**
-   * 檢查檔案擴展名白名單
+   * Validate file extension against whitelist
    */
   private static validateFileExtension(filePath: string): void {
     const ext = path.extname(filePath).toLowerCase();
@@ -208,7 +208,7 @@ export class SecurityService {
   }
 
   /**
-   * 檢查路徑是否在封鎖列表中
+   * Check if path is in blocked list
    */
   private static checkBlockedPaths(requestPath: string): void {
     const blockedPaths = appConfig.getSecurityConfig().blockedPaths;
@@ -228,7 +228,7 @@ export class SecurityService {
   }
 
   /**
-   * 取得客戶端資訊 (用於安全記錄)
+   * Get client information (for security logging)
    */
   private static getClientInfo(): {
     userAgent?: string;
@@ -240,13 +240,13 @@ export class SecurityService {
         timestamp: new Date().toISOString(),
       };
 
-    // 在瀏覽器環境中收集基本資訊
+    // Collect basic information in browser environment
     if (typeof window !== "undefined") {
       clientInfo.userAgent = navigator.userAgent;
-      clientInfo.ip = "client-side"; // 客戶端無法取得真實 IP
+      clientInfo.ip = "client-side"; // Client-side cannot get real IP
     } else {
-      // 伺服器端環境：嘗試從 process.env 或 request headers 獲取資訊
-      // 這需要在 API route 中正確設置
+      // Server-side environment: attempt to get information from process.env or request headers
+      // This needs to be properly set in API route
       clientInfo.userAgent = process.env.HTTP_USER_AGENT || "server-side";
       clientInfo.ip =
         process.env.REMOTE_ADDR ||
@@ -257,7 +257,7 @@ export class SecurityService {
     return clientInfo;
   }
   /**
-   * 強化的路徑驗證 (A 級安全性)
+   * Enhanced path validation (A-level security)
    */
   static validatePath(requestPath: string = "", basePath: string): string {
     if (!requestPath || !basePath) {
@@ -270,28 +270,28 @@ export class SecurityService {
       throw new Error("Invalid request");
     }
 
-    // 1. URL 解碼和路徑正規化 (防止編碼繞過)
+    // 1. URL decoding and path normalization (prevents encoding bypass)
     const sanitized = this.sanitizePath(requestPath);
 
-    // 2. 檢查惡意模式
+    // 2. Check for malicious patterns
     this.checkMaliciousPatterns(sanitized);
 
-    // 3. 檢查封鎖路徑
+    // 3. Check blocked paths
     this.checkBlockedPaths(sanitized);
 
-    // 4. 檢查危險可執行檔案
+    // 4. Check dangerous executables
     this.checkDangerousExecutables(sanitized);
 
-    // 5. 檢查檔案擴展名白名單 (如果有擴展名的話)
+    // 5. Validate file extension whitelist (if extension exists)
     if (path.extname(sanitized)) {
       this.validateFileExtension(sanitized);
     }
 
-    // 6. 解析絕對路徑
+    // 6. Resolve absolute path
     const resolvedPath = path.resolve(basePath, sanitized);
     const resolvedBasePath = path.resolve(basePath);
 
-    // 7. 確保路徑在基礎目錄內 (嚴格的跨平台安全檢查)
+    // 7. Ensure path is within base directory (strict cross-platform security check)
     const normalizedResolved = path
       .normalize(resolvedPath)
       .replace(/[\/\\]/g, path.sep);
@@ -300,10 +300,10 @@ export class SecurityService {
       .replace(/[\/\\]/g, path.sep)
       .replace(/[\/\\]+$/, "");
 
-    // 使用更嚴格的邊界檢查，避免 /app vs /application 的問題
+    // Use stricter boundary check to avoid /app vs /application issues
     const relativePath = path.relative(normalizedBase, normalizedResolved);
 
-    // 如果相對路徑為空或不包含 '..' 且不以 '/' 開頭，則安全
+    // Safe if relative path is empty or doesn't contain '..' and doesn't start with '/'
     if (
       relativePath &&
       (relativePath.startsWith("..") || path.isAbsolute(relativePath))
@@ -317,7 +317,7 @@ export class SecurityService {
       throw new Error("Access denied");
     }
 
-    // 8. 最終檢查：確保解析後的路徑沒有惡意模式
+    // 8. Final check: ensure resolved path has no malicious patterns
     this.checkMaliciousPatterns(resolvedPath);
 
     return resolvedPath;
@@ -338,7 +338,7 @@ export class SecurityService {
   }
 
   /**
-   * 取得安全事件記錄 (用於監控和分析)
+   * Get security event logs (for monitoring and analysis)
    */
   static getSecurityLogs(limit?: number): SecurityLog[] {
     if (limit && limit > 0) {
@@ -348,7 +348,7 @@ export class SecurityService {
   }
 
   /**
-   * 清除安全事件記錄
+   * Clear security event logs
    */
   static clearSecurityLogs(): void {
     this.securityLogs = [];
@@ -356,13 +356,13 @@ export class SecurityService {
   }
 
   /**
-   * 取得安全統計資訊
+   * Get security statistics
    */
   static getSecurityStats(): {
     totalEvents: number;
     eventsByType: Record<string, number>;
     eventsBySeverity: Record<string, number>;
-    recentEvents: number; // 最近24小時
+    recentEvents: number; // Last 24 hours
   } {
     const now = new Date();
     const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -372,14 +372,14 @@ export class SecurityService {
     let recentEvents = 0;
 
     this.securityLogs.forEach((log) => {
-      // 統計類型
+      // Count by type
       eventsByType[log.type] = (eventsByType[log.type] || 0) + 1;
 
-      // 統計嚴重程度
+      // Count by severity
       eventsBySeverity[log.severity] =
         (eventsBySeverity[log.severity] || 0) + 1;
 
-      // 統計最近24小時事件
+      // Count events in last 24 hours
       if (log.timestamp >= last24Hours) {
         recentEvents++;
       }

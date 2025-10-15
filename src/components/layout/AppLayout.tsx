@@ -85,7 +85,7 @@ const AppLayoutInner: React.FC = () => {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // 為每個新視窗/標籤頁產生唯一 ID
+      // Generate unique ID for each new window/tab
       let windowId = sessionStorage.getItem("windowId");
       if (!windowId) {
         windowId = `window_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -94,7 +94,7 @@ const AppLayoutInner: React.FC = () => {
         console.log("[AppLayout] New window detected, assigned ID:", windowId);
       }
 
-      // 檢查是否為頁面重新整理
+      // Check if this is a page refresh
       const navigation = performance.getEntriesByType(
         "navigation",
       )[0] as PerformanceNavigationTiming;
@@ -152,7 +152,7 @@ const AppLayoutInner: React.FC = () => {
   const handleFileSelect = (file: FileItem | null) => {
     setSelectedFile(file);
 
-    // 通知 Claude Code 和內部組件當前選擇的檔案
+    // Notify Claude Code and internal components about the currently selected file
     if (file && typeof window !== "undefined") {
       try {
         const fileSelectionMessage = {
@@ -165,10 +165,10 @@ const AppLayoutInner: React.FC = () => {
           },
         };
 
-        // 通知 Claude Code (如果在 iframe 中)
+        // Notify Claude Code (if in iframe)
         window.parent?.postMessage(fileSelectionMessage, "*");
 
-        // 通知同一視窗中的組件 (ChatPanel)
+        // Notify components in the same window (ChatPanel)
         window.postMessage(fileSelectionMessage, "*");
 
         console.log("[AppLayout] Notified file selection:", file.path);

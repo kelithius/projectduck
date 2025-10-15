@@ -11,7 +11,7 @@ import type { FileAttachment } from "@/lib/types/chat";
 export interface SimplifiedQueryOptions {
   prompt: string;
   projectPath: string;
-  clientSessionId?: string; // 用於 resume 的 session ID
+  clientSessionId?: string; // Session ID for resume functionality
   attachments?: File[];
   permissionMode?: PermissionMode;
   allowedTools?: string[];
@@ -25,13 +25,13 @@ export interface QueryResult {
 }
 
 /**
- * 極簡化的 Claude Code SDK 服務
+ * Simplified Claude Code SDK Service
  *
- * 設計理念：
- * 1. 不維護自己的 session 狀態
- * 2. 完全依賴 Claude Code SDK 的 resume 機制
- * 3. 每個分頁/重新整理都是新的開始
- * 4. 無狀態設計，伺服器不保存任何對話歷史
+ * Design Philosophy:
+ * 1. Does not maintain its own session state
+ * 2. Completely relies on Claude Code SDK's resume mechanism
+ * 3. Each tab/refresh is a new beginning
+ * 4. Stateless design, server does not persist any conversation history
  */
 export class SimplifiedClaudeService {
   private static instance: SimplifiedClaudeService;
@@ -50,7 +50,7 @@ export class SimplifiedClaudeService {
   private constructor() {}
 
   /**
-   * 啟動查詢 - 極簡版本
+   * Start query - simplified version
    */
   public async startQuery(
     options: SimplifiedQueryOptions,
@@ -73,32 +73,32 @@ export class SimplifiedClaudeService {
         resumeMode: !!clientSessionId,
       });
 
-      // 建構 SDK 選項
+      // Construct SDK options
       const sdkOptions: Options = {
         cwd: projectPath,
         permissionMode,
         allowedTools,
         maxTurns,
-        // 如果有 clientSessionId，使用 resume 機制
+        // If clientSessionId exists, use resume mechanism
         ...(clientSessionId ? { resumeSessionId: clientSessionId } : {}),
         abortController: new AbortController(),
-        // 動態設定 Claude executable 路徑
+        // Dynamically set Claude executable path
         ...this.getClaudeExecutablePath(),
       };
 
-      // 處理附件並建構 prompt
+      // Process attachments and construct prompt
       const enhancedPrompt = await this.buildPromptWithAttachments(
         prompt,
         attachments || [],
       );
 
-      // 建立查詢
+      // Create query
       const queryGenerator = query({
         prompt: enhancedPrompt,
         options: sdkOptions,
       });
 
-      // 追蹤運行中的查詢（用於中斷）
+      // Track running queries (for interruption)
       if (clientSessionId) {
         this.runningQueries.set(clientSessionId, {
           query: queryGenerator,
@@ -120,7 +120,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 中斷指定的查詢
+   * Interrupt specified query
    */
   public async interruptQuery(clientSessionId: string): Promise<boolean> {
     const runningQuery = this.runningQueries.get(clientSessionId);
@@ -139,7 +139,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 處理查詢結果流
+   * Process query result stream
    */
   public async *processQuery(
     queryGenerator: Query,
@@ -154,7 +154,7 @@ export class SimplifiedClaudeService {
       console.error("[SimplifiedClaude] Error in query processing:", error);
       throw error;
     } finally {
-      // 清理運行中的查詢追蹤
+      // Clean up running query tracking
       if (clientSessionId) {
         this.runningQueries.delete(clientSessionId);
       }
@@ -162,7 +162,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 建構包含附件的 prompt
+   * Build prompt with attachments
    */
   private async buildPromptWithAttachments(
     prompt: string,
@@ -174,12 +174,12 @@ export class SimplifiedClaudeService {
 
     let enhancedPrompt = prompt;
 
-    // 處理附件
+    // Process attachments
     const attachmentInfos: string[] = [];
     for (const file of attachments) {
       let info = `File: ${file.name} (${file.type}, ${this.formatFileSize(file.size)})`;
 
-      // 如果是文字檔案，讀取內容
+      // If it's a text file, read content
       if (this.isTextFile(file)) {
         try {
           const content = await file.text();
@@ -201,7 +201,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 檢查是否為文字檔案
+   * Check if file is a text file
    */
   private isTextFile(file: File): boolean {
     return (
@@ -218,7 +218,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 格式化檔案大小
+   * Format file size
    */
   private formatFileSize(bytes: number): string {
     if (bytes === 0) return "0 B";
@@ -229,7 +229,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 取得 Claude executable 路徑
+   * Get Claude executable path
    */
   private getClaudeExecutablePath(): Partial<Options> {
     try {
@@ -254,7 +254,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 檢查 Claude CLI 是否可用
+   * Check if Claude CLI is available
    */
   public async checkClaudeAvailability(): Promise<{
     available: boolean;
@@ -278,7 +278,7 @@ export class SimplifiedClaudeService {
     }
 
     try {
-      // 建立測試查詢
+      // Create test query
       const testOptions: Options = {
         cwd: process.cwd(),
         maxTurns: 1,
@@ -286,13 +286,13 @@ export class SimplifiedClaudeService {
         ...this.getClaudeExecutablePath(),
       };
 
-      // 嘗試建立查詢來測試 SDK 可用性
+      // Try to create query to test SDK availability
       query({
         prompt: "Hello",
         options: testOptions,
       });
 
-      // 立即中斷避免實際執行
+      // Abort immediately to avoid actual execution
       testOptions.abortController?.abort();
 
       console.log(
@@ -336,7 +336,7 @@ export class SimplifiedClaudeService {
   }
 
   /**
-   * 取得統計資訊
+   * Get statistics
    */
   public getStats() {
     return {
@@ -346,5 +346,5 @@ export class SimplifiedClaudeService {
   }
 }
 
-// 匯出單例實例
+// Export singleton instance
 export const simplifiedClaudeService = SimplifiedClaudeService.getInstance();

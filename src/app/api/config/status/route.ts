@@ -1,16 +1,16 @@
-import { NextResponse } from 'next/server';
-import { appConfig } from '@/lib/services/appConfigService';
+import { NextResponse } from "next/server";
+import { appConfig } from "@/lib/services/appConfigService";
 
 /**
  * GET /api/config/status
- * 
- * 回傳當前應用程式配置摘要
- * 用於除錯和系統狀態檢查
+ *
+ * Returns current application configuration summary
+ * Used for debugging and system status checks
  */
 export async function GET() {
   try {
     const config = appConfig.getConfig();
-    
+
     const statusResponse = {
       success: true,
       data: {
@@ -48,18 +48,20 @@ export async function GET() {
           nodeVersion: process.version,
         },
         timestamp: new Date().toISOString(),
-      }
+      },
     };
 
     return NextResponse.json(statusResponse, { status: 200 });
-    
   } catch (error) {
-    console.error('[Config Status API] Error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Configuration error',
-      timestamp: new Date().toISOString(),
-    }, { status: 500 });
+    console.error("[Config Status API] Error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Configuration error",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 },
+    );
   }
 }

@@ -1,60 +1,58 @@
-import { NextRequest } from 'next/server';
-import { claudeSDKService } from '@/lib/services/claude/claudeSDKService';
+import { NextRequest } from "next/server";
+import { claudeSDKService } from "@/lib/services/claude/claudeSDKService";
 
-// GET: 取得系統狀態和統計資訊
+// GET: Get system status and statistics
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const clientSessionId = searchParams.get('clientSessionId');
+    const clientSessionId = searchParams.get("clientSessionId");
 
-    // 取得 Claude Code 可用性
+    // Get Claude Code availability
     const availability = await claudeSDKService.checkClaudeAvailability();
-    
-    // 取得統計資訊
+
+    // Get statistics
     const stats = claudeSDKService.getStats();
 
     const response = {
       success: true,
       data: {
-        architecture: 'simplified',
+        architecture: "simplified",
         claudeAvailable: availability.available,
         claudeError: availability.error,
         clientSessionId: clientSessionId || null,
-        sessionModel: 'tab-isolated', // 每個分頁獨立
+        sessionModel: "tab-isolated", // Each tab is isolated
         stats: {
           runningQueries: stats.runningQueries,
-          queryIds: stats.queryIds
+          queryIds: stats.queryIds,
         },
         features: {
-          sessionPersistence: false, // 不持久化
-          sessionResume: true, // 使用 Claude SDK resume
-          sessionIsolation: true, // 完全隔離
-          autoCleanup: false // 不需要清理
-        }
-      }
+          sessionPersistence: false, // No persistence
+          sessionResume: true, // Use Claude SDK resume
+          sessionIsolation: true, // Complete isolation
+          autoCleanup: false, // No cleanup needed
+        },
+      },
     };
 
-    return new Response(
-      JSON.stringify(response),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
+    return new Response(JSON.stringify(response), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
-    console.error('[Status API] Error:', error);
+    console.error("[Status API] Error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get status'
+        error: error instanceof Error ? error.message : "Failed to get status",
       }),
-      { 
+      {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 }
 
-// POST: 初始化或驗證 client session（可選）
+// POST: Initialize or validate client session (optional)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -62,39 +60,44 @@ export async function POST(request: NextRequest) {
 
     if (!clientSessionId?.trim()) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Client session ID is required' }),
-        { 
+        JSON.stringify({
+          success: false,
+          error: "Client session ID is required",
+        }),
+        {
           status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log('[Status API] Client session initialized:', clientSessionId);
+    console.log("[Status API] Client session initialized:", clientSessionId);
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           clientSessionId,
-          message: 'Session registered (no server-side state maintained)',
-          architecture: 'simplified'
-        }
+          message: "Session registered (no server-side state maintained)",
+          architecture: "simplified",
+        },
       }),
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { "Content-Type": "application/json" } },
     );
-
   } catch (error) {
-    console.error('[Status API] Initialization error:', error);
+    console.error("[Status API] Initialization error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to initialize session'
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to initialize session",
       }),
-      { 
+      {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 }

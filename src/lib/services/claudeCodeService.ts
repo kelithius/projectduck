@@ -11,7 +11,7 @@ export interface ClaudeCodeResponse {
   error?: string;
 }
 
-// 事件類型定義
+// Event type definition
 export interface StreamEvent {
   type: "start" | "message" | "complete" | "error" | "session";
   data: unknown;
@@ -27,7 +27,7 @@ class ClaudeCodeService {
     );
   }
 
-  // 新的極簡架構下，不需要清除 session，因為每個分頁都是獨立的
+  // In the new minimalist architecture, session clearing is not needed as each tab is independent
   async clearSession(_projectPath: string): Promise<boolean> {
     console.log(
       "[ClaudeCodeService] Clear session called, but not needed in new architecture",
@@ -35,7 +35,7 @@ class ClaudeCodeService {
     console.log(
       "[ClaudeCodeService] Each tab/reload creates a new independent session",
     );
-    return true; // 總是成功，因為不需要做任何事
+    return true; // Always succeeds because no action is needed
   }
 
   async checkAuthentication(): Promise<boolean> {
@@ -80,8 +80,8 @@ class ClaudeCodeService {
     }
   }
 
-  // 在新架構中，projectPath 直接在每次請求中傳遞，不需要全域狀態
-  // async setWorkingDirectory 已經不需要了
+  // In the new architecture, projectPath is passed directly in each request without global state
+  // async setWorkingDirectory is no longer needed
 
   async sendMessage(
     options: SendMessageOptions,
@@ -90,18 +90,18 @@ class ClaudeCodeService {
     const { content, attachments, projectPath } = options;
 
     try {
-      // 準備請求資料 - 使用新的極簡 API
+      // Prepare request data - using the new minimalist API
       const formData = new FormData();
       formData.append("message", content);
       if (claudeSessionId) {
-        formData.append("clientSessionId", claudeSessionId); // 向後相容：API 還期待 clientSessionId
+        formData.append("clientSessionId", claudeSessionId); // Backward compatibility: API still expects clientSessionId
       }
 
       if (projectPath) {
         formData.append("projectPath", projectPath);
       }
 
-      // 處理附件
+      // Handle attachments
       if (attachments && attachments.length > 0) {
         attachments.forEach((file, index) => {
           formData.append(`attachment_${index}`, file);
@@ -109,10 +109,10 @@ class ClaudeCodeService {
         formData.append("attachmentCount", attachments.length.toString());
       }
 
-      // 建立新的 AbortController
+      // Create new AbortController
       this.abortController = new AbortController();
 
-      // 使用新的極簡 query API
+      // Use the new minimalist query API
       const response = await fetch("/api/claude/query", {
         method: "POST",
         body: formData,
@@ -124,7 +124,7 @@ class ClaudeCodeService {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // 新的 API 會回傳 Server-Sent Events
+      // The new API returns Server-Sent Events
       return {
         success: true,
         data: {
@@ -152,7 +152,7 @@ class ClaudeCodeService {
     }
   }
 
-  // 新增 SSE 事件流處理方法
+  // Add SSE event stream processing method
   async sendMessageWithSSE(
     options: SendMessageOptions,
     onEvent: (event: StreamEvent) => void,
@@ -161,18 +161,18 @@ class ClaudeCodeService {
     const { content, attachments, projectPath } = options;
 
     try {
-      // 準備請求資料 - 使用新的極簡 API
+      // Prepare request data - using the new minimalist API
       const formData = new FormData();
       formData.append("message", content);
       if (claudeSessionId) {
-        formData.append("clientSessionId", claudeSessionId); // 向後相容：API 還期待 clientSessionId
+        formData.append("clientSessionId", claudeSessionId); // Backward compatibility: API still expects clientSessionId
       }
 
       if (projectPath) {
         formData.append("projectPath", projectPath);
       }
 
-      // 處理附件
+      // Handle attachments
       if (attachments && attachments.length > 0) {
         attachments.forEach((file, index) => {
           formData.append(`attachment_${index}`, file);
@@ -180,10 +180,10 @@ class ClaudeCodeService {
         formData.append("attachmentCount", attachments.length.toString());
       }
 
-      // 建立新的 AbortController
+      // Create new AbortController
       this.abortController = new AbortController();
 
-      // 使用新的極簡 query API
+      // Use the new minimalist query API
       const response = await fetch("/api/claude/query", {
         method: "POST",
         body: formData,
@@ -195,7 +195,7 @@ class ClaudeCodeService {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // 處理 Server-Sent Events
+      // Handle Server-Sent Events
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
@@ -205,7 +205,7 @@ class ClaudeCodeService {
 
       try {
         let buffer = "";
-        const MAX_BUFFER_SIZE = appConfig.getSSEBufferSize(); // 可配置的 SSE buffer 大小
+        const MAX_BUFFER_SIZE = appConfig.getSSEBufferSize(); // Configurable SSE buffer size
 
         while (true) {
           const { done, value } = await reader.read();
@@ -227,9 +227,9 @@ class ClaudeCodeService {
 
           buffer += chunk;
 
-          // 處理完整的事件
+          // Process complete events
           const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; // 保留不完整的行
+          buffer = lines.pop() || ""; // Keep incomplete lines
 
           let currentEvent: { type?: string; data?: string } = {};
 
@@ -239,7 +239,7 @@ class ClaudeCodeService {
             } else if (line.startsWith("data: ")) {
               currentEvent.data = line.substring(6);
             } else if (line === "" && currentEvent.type && currentEvent.data) {
-              // 完整事件，處理它
+              // Complete event, process it
               try {
                 const eventData = JSON.parse(currentEvent.data);
                 onEvent({
@@ -258,7 +258,7 @@ class ClaudeCodeService {
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        // 取消請求時發送 complete 事件而不是 error 事件
+        // Send complete event instead of error event when request is cancelled
         onEvent({
           type: "complete",
           data: {
@@ -305,7 +305,7 @@ class ClaudeCodeService {
       this.abortController.abort();
       this.abortController = null;
 
-      // 也通過 API 中斷後端查詢
+      // Also interrupt the backend query via API
       if (claudeSessionId) {
         try {
           await fetch(
@@ -328,9 +328,9 @@ class ClaudeCodeService {
     return this.authenticated;
   }
 
-  // getCurrentProject 不再需要，因為 projectPath 現在在每次請求中直接傳遞
+  // getCurrentProject is no longer needed because projectPath is now passed directly in each request
 
-  // 在新架構中，消息歷史由前端 UI 自己管理，不依賴後端
+  // In the new architecture, message history is managed by the frontend UI, not dependent on the backend
   async getMessageHistory(projectPath: string): Promise<Message[]> {
     console.log(
       "[ClaudeCodeService] Message history requested for:",
@@ -342,10 +342,10 @@ class ClaudeCodeService {
     console.log(
       "[ClaudeCodeService] Claude Code SDK handles conversation context via resume mechanism",
     );
-    return []; // 返回空陣列，讓前端 UI 自己管理消息狀態
+    return []; // Return empty array, let frontend UI manage message state
   }
 
-  // 輔助方法：處理檔案上傳
+  // Helper method: process file uploads
   async processFileAttachments(files: File[]): Promise<FileAttachment[]> {
     const attachments: FileAttachment[] = [];
 
@@ -357,7 +357,7 @@ class ClaudeCodeService {
         size: file.size,
       };
 
-      // 如果是文字檔案，讀取內容
+      // Read content if it's a text file
       if (
         file.type.startsWith("text/") ||
         file.name.endsWith(".md") ||
@@ -378,7 +378,7 @@ class ClaudeCodeService {
     return attachments;
   }
 
-  // 建立測試訊息（開發期間使用）
+  // Create test message (used during development)
   createTestMessage(
     content: string,
     role: "user" | "assistant" = "assistant",
@@ -393,6 +393,6 @@ class ClaudeCodeService {
   }
 }
 
-// 單例模式
+// Singleton pattern
 export const claudeCodeService = new ClaudeCodeService();
 export default claudeCodeService;

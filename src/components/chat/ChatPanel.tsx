@@ -1,15 +1,22 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Input, Button, Space, Upload, Spin, App } from 'antd';
-import { SendOutlined, PaperClipOutlined, RobotOutlined, CloseOutlined } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { v4 as uuidv4 } from 'uuid';
-import { Message, FileAttachment, CurrentFileInfo } from '@/lib/types/chat';
-import claudeCodeService, { type StreamEvent } from '@/lib/services/claudeCodeService';
-import { useProject } from '@/lib/providers/project-provider';
-import type { SDKMessage } from '@anthropic-ai/claude-code';
-import MessageBubble, { type ToolActivity } from './MessageBubble';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Input, Button, Space, Upload, Spin, App } from "antd";
+import {
+  SendOutlined,
+  PaperClipOutlined,
+  RobotOutlined,
+  CloseOutlined,
+} from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
+import { v4 as uuidv4 } from "uuid";
+import { Message, FileAttachment, CurrentFileInfo } from "@/lib/types/chat";
+import claudeCodeService, {
+  type StreamEvent,
+} from "@/lib/services/claudeCodeService";
+import { useProject } from "@/lib/providers/project-provider";
+import type { SDKMessage } from "@anthropic-ai/claude-code";
+import MessageBubble, { type ToolActivity } from "./MessageBubble";
 
 const { TextArea } = Input;
 
@@ -18,121 +25,148 @@ interface ChatPanelProps {
   className?: string;
 }
 
-// 移除重複定義，直接使用導入的 CurrentFileInfo
+// Remove duplicate definition, use imported CurrentFileInfo directly
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, className }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({
+  darkMode = false,
+  className,
+}) => {
   const { t } = useTranslation();
   const { getCurrentBasePath } = useProject();
   const { message } = App.useApp();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [currentAssistantMessage, setCurrentAssistantMessage] = useState<string>('');
+  const [currentAssistantMessage, setCurrentAssistantMessage] =
+    useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
-  const [toolActivities, setToolActivities] = useState<Map<string, ToolActivity[]>>(new Map());
-  
-  // Tool Activities 記憶體管理配置
-  const MAX_TOOL_ACTIVITIES_SIZE = 50; // 最多保留 50 個訊息的工具活動
-  const CLEANUP_THRESHOLD = 60; // 當超過 60 個時觸發清理
-  
-  // 清理 Tool Activities 記憶體
-  const cleanupToolActivities = useCallback((currentMap: Map<string, ToolActivity[]>) => {
-    if (currentMap.size <= MAX_TOOL_ACTIVITIES_SIZE) {
-      return currentMap;
-    }
-    
-    // 轉換為陣列並按時間戳排序 (保留最新的)
-    const entries = Array.from(currentMap.entries());
-    const sortedEntries = entries.sort((a, b) => {
-      const aLatestTime = Math.max(...a[1].map(activity => activity.timestamp.getTime()));
-      const bLatestTime = Math.max(...b[1].map(activity => activity.timestamp.getTime()));
-      return bLatestTime - aLatestTime; // 降序，最新的在前面
-    });
-    
-    // 只保留最新的 MAX_TOOL_ACTIVITIES_SIZE 個
-    const keptEntries = sortedEntries.slice(0, MAX_TOOL_ACTIVITIES_SIZE);
-    const cleanedMap = new Map(keptEntries);
-    
-    console.log(`[ChatPanel] Cleaned tool activities: ${currentMap.size} → ${cleanedMap.size}`);
-    return cleanedMap;
-  }, [MAX_TOOL_ACTIVITIES_SIZE]);
-  
-  // 安全的 Tool Activities 更新函數 (帶記憶體管理)
-  const updateToolActivities = useCallback((updater: (prev: Map<string, ToolActivity[]>) => Map<string, ToolActivity[]>) => {
-    setToolActivities(prev => {
-      const updated = updater(prev);
-      
-      // 檢查是否需要清理
-      if (updated.size >= CLEANUP_THRESHOLD) {
-        return cleanupToolActivities(updated);
+  const [toolActivities, setToolActivities] = useState<
+    Map<string, ToolActivity[]>
+  >(new Map());
+
+  // Tool Activities memory management configuration
+  const MAX_TOOL_ACTIVITIES_SIZE = 50; // Maximum 50 messages' tool activities retained
+  const CLEANUP_THRESHOLD = 60; // Trigger cleanup when exceeding 60
+
+  // Cleanup Tool Activities memory
+  const cleanupToolActivities = useCallback(
+    (currentMap: Map<string, ToolActivity[]>) => {
+      if (currentMap.size <= MAX_TOOL_ACTIVITIES_SIZE) {
+        return currentMap;
       }
-      
-      return updated;
-    });
-  }, [CLEANUP_THRESHOLD, cleanupToolActivities]);
-  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>('');
+
+      // Convert to array and sort by timestamp (keep newest)
+      const entries = Array.from(currentMap.entries());
+      const sortedEntries = entries.sort((a, b) => {
+        const aLatestTime = Math.max(
+          ...a[1].map((activity) => activity.timestamp.getTime()),
+        );
+        const bLatestTime = Math.max(
+          ...b[1].map((activity) => activity.timestamp.getTime()),
+        );
+        return bLatestTime - aLatestTime; // Descending order, newest first
+      });
+
+      // Keep only the newest MAX_TOOL_ACTIVITIES_SIZE entries
+      const keptEntries = sortedEntries.slice(0, MAX_TOOL_ACTIVITIES_SIZE);
+      const cleanedMap = new Map(keptEntries);
+
+      console.log(
+        `[ChatPanel] Cleaned tool activities: ${currentMap.size} → ${cleanedMap.size}`,
+      );
+      return cleanedMap;
+    },
+    [MAX_TOOL_ACTIVITIES_SIZE],
+  );
+
+  // Safe Tool Activities update function (with memory management)
+  const updateToolActivities = useCallback(
+    (
+      updater: (
+        prev: Map<string, ToolActivity[]>,
+      ) => Map<string, ToolActivity[]>,
+    ) => {
+      setToolActivities((prev) => {
+        const updated = updater(prev);
+
+        // Check if cleanup is needed
+        if (updated.size >= CLEANUP_THRESHOLD) {
+          return cleanupToolActivities(updated);
+        }
+
+        return updated;
+      });
+    },
+    [CLEANUP_THRESHOLD, cleanupToolActivities],
+  );
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] =
+    useState<string>("");
   const [currentFile, setCurrentFile] = useState<CurrentFileInfo | null>(null);
-  const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false); // 追蹤是否已發送第一次訊息
+  const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false); // Track if first message has been sent
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<File[]>([]);
-  const claudeSessionRef = useRef<string | null>(null); // 儲存 Claude SDK 的真實 session ID
+  const claudeSessionRef = useRef<string | null>(null); // Store Claude SDK's actual session ID
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, currentAssistantMessage]);
 
-  // 初始化對話歷史和載入歷史訊息
+  // Initialize conversation history and load historical messages
   useEffect(() => {
     const initializeChat = async () => {
       const currentProject = getCurrentBasePath();
       if (currentProject) {
-        // 在新架構中，每次頁面載入都會自動創建新的獨立 session
-        // session ID 由 Claude SDK 動態生成，不需要預先產生
-        console.log('[ChatPanel] Initialize with new architecture');
-        console.log('[ChatPanel] Session ID will be generated by Claude SDK on first query');
-        console.log('[ChatPanel] Each tab/reload automatically creates isolated session');
-        
-        // 初始化為空消息歷史，讓新對話從頭開始
+        // In new architecture, each page load automatically creates new isolated session
+        // Session ID is generated dynamically by Claude SDK, no need to pre-generate
+        console.log("[ChatPanel] Initialize with new architecture");
+        console.log(
+          "[ChatPanel] Session ID will be generated by Claude SDK on first query",
+        );
+        console.log(
+          "[ChatPanel] Each tab/reload automatically creates isolated session",
+        );
+
+        // Initialize with empty message history, let new conversation start fresh
         setMessages([]);
-        
-        // 清理不再需要的 sessionStorage 項目
-        sessionStorage.removeItem('pageRefreshed');
-        sessionStorage.removeItem('isNewWindow');
-        sessionStorage.removeItem('windowId');
+
+        // Cleanup sessionStorage items no longer needed
+        sessionStorage.removeItem("pageRefreshed");
+        sessionStorage.removeItem("isNewWindow");
+        sessionStorage.removeItem("windowId");
       }
     };
-    
+
     initializeChat();
   }, [getCurrentBasePath]);
 
-  // 監聽來自父視窗的檔案選擇事件
+  // Listen to file selection events from parent window
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // 檢查訊息來源和類型
-      if (event.data?.type === 'fileSelected' && event.data?.file) {
+      // Check message source and type
+      if (event.data?.type === "fileSelected" && event.data?.file) {
         const fileInfo = event.data.file as CurrentFileInfo;
         setCurrentFile(fileInfo);
-        console.log('[ChatPanel] Received file selection:', fileInfo.path);
+        console.log("[ChatPanel] Received file selection:", fileInfo.path);
       }
     };
 
-    // 監聽 postMessage 事件
-    window.addEventListener('message', handleMessage);
-    
-    // 清理監聽器
+    // Listen to postMessage events
+    window.addEventListener("message", handleMessage);
+
+    // Cleanup listener
     return () => {
-      window.removeEventListener('message', handleMessage);
+      window.removeEventListener("message", handleMessage);
     };
   }, []);
 
-  // 檢查認證狀態
+  // Check authentication status
   useEffect(() => {
     const checkAuth = async () => {
       const authStatus = await claudeCodeService.checkAuthentication();
@@ -141,320 +175,360 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
     checkAuth();
   }, []);
 
-  // 監聽專案切換事件，清空對話內容
+  // Listen to project switch events, clear conversation content
   useEffect(() => {
     const handleProjectChange = () => {
       setMessages([]);
-      setCurrentAssistantMessage('');
+      setCurrentAssistantMessage("");
       setIsStreaming(false);
       setIsThinking(false);
-      setToolActivities(new Map()); // 清空操作，不需要記憶體管理
-      setCurrentAssistantMessageId('');
+      setToolActivities(new Map()); // Clear operation, no memory management needed
+      setCurrentAssistantMessageId("");
     };
 
-    window.addEventListener('projectChange', handleProjectChange);
-    
+    window.addEventListener("projectChange", handleProjectChange);
+
     return () => {
-      window.removeEventListener('projectChange', handleProjectChange);
+      window.removeEventListener("projectChange", handleProjectChange);
     };
   }, []);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() && attachments.length === 0) return;
     if (!isAuthenticated) {
-      message.error(t('chat.auth.error'));
+      message.error(t("chat.auth.error"));
       return;
     }
 
-
-    // 建立使用者訊息 (保持原始內容)
+    // Create user message (preserve original content)
     const newMessage: Message = {
       id: uuidv4(),
-      role: 'user',
-      content: inputValue.trim() || `[${t('chat.input.attachment')}]`,
+      role: "user",
+      content: inputValue.trim() || `[${t("chat.input.attachment")}]`,
       timestamp: new Date(),
-      status: 'sending',
+      status: "sending",
       attachments: [...attachments],
-      currentFile: currentFile || undefined // 將檔案資訊儲存到訊息中，用於顯示
+      currentFile: currentFile || undefined, // Store file information in message for display
     };
 
-    // 發送給 Claude 的內容包含檔案上下文
+    // Content sent to Claude includes file context
     let messageContent = inputValue.trim();
     if (currentFile) {
-      // 只在發送給 Claude 時添加檔案上下文，不影響使用者看到的內容
+      // Add file context only when sending to Claude, without affecting user-visible content
       const fileContext = `\n\n[Context: Currently viewing ${currentFile.name} at ${currentFile.path}]`;
       messageContent = messageContent + fileContext;
     }
     const messageAttachments = [...fileInputRef.current];
-    
-    // 建立完整的對話歷史（包含新訊息）
+
+    // Build complete conversation history (including new message)
     const updatedMessages = [...messages, newMessage];
-    
+
     setMessages(updatedMessages);
-    setInputValue('');
+    setInputValue("");
     setAttachments([]);
     fileInputRef.current = [];
     setIsLoading(true);
     setIsStreaming(true);
     setIsThinking(true);
 
-    // 標記已發送第一次訊息
+    // Mark that first message has been sent
     if (!hasSentFirstMessage) {
       setHasSentFirstMessage(true);
     }
 
-    // 準備接收助理回應
+    // Prepare to receive assistant response
     const assistantMessageId = uuidv4();
-    setCurrentAssistantMessage('');
+    setCurrentAssistantMessage("");
     setCurrentAssistantMessageId(assistantMessageId);
 
     try {
       const currentProject = getCurrentBasePath();
-      
+
       if (!currentProject) {
-        throw new Error(t('chat.error.project'));
+        throw new Error(t("chat.error.project"));
       }
 
-      // 標記用戶訊息為已發送
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === newMessage.id ? { ...msg, status: 'sent' as const } : msg
-        )
+      // Mark user message as sent
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === newMessage.id ? { ...msg, status: "sent" as const } : msg,
+        ),
       );
 
-      // 使用 SSE 發送訊息，傳入瀏覽器端的 session ID
+      // Send message using SSE, passing browser-side session ID
       await claudeCodeService.sendMessageWithSSE(
         {
           content: messageContent,
           attachments: messageAttachments,
-          projectPath: currentProject
-          // 不需要傳送對話歷史，Claude SDK 會自動管理
+          projectPath: currentProject,
+          // No need to send conversation history, Claude SDK manages it automatically
         },
         (event: StreamEvent) => {
-          console.log('SSE Event:', event);
+          console.log("SSE Event:", event);
 
           switch (event.type) {
-            case 'start':
-              console.log('Query started:', (event.data as { message?: string })?.message);
-              // 保持思考動畫，直到收到實際文字回覆
+            case "start":
+              console.log(
+                "Query started:",
+                (event.data as { message?: string })?.message,
+              );
+              // Keep thinking animation until actual text response is received
               break;
 
-            case 'session':
-              // 接收 Claude SDK 的真實 session ID，儲存到瀏覽器端
+            case "session":
+              // Receive actual session ID from Claude SDK and store it on browser side
               const sessionData = event.data as { claudeSessionId?: string };
               if (sessionData?.claudeSessionId) {
                 claudeSessionRef.current = sessionData.claudeSessionId;
-                console.log('[ChatPanel] Received Claude session ID:', sessionData.claudeSessionId);
-                // 不再設定到 claudeCodeService，因為 session ID 現在由瀏覽器端管理
+                console.log(
+                  "[ChatPanel] Received Claude session ID:",
+                  sessionData.claudeSessionId,
+                );
+                // No longer set to claudeCodeService, as session ID is now managed by browser side
               }
               break;
 
-            case 'message':
+            case "message":
               const sdkMessage = (event.data as { data: SDKMessage })?.data;
               if (sdkMessage) {
                 handleSDKMessage(sdkMessage, assistantMessageId);
               }
               break;
 
-            case 'complete':
-              // 檢查是否為取消事件
+            case "complete":
+              // Check if this is a cancel event
               if ((event.data as { cancelled?: boolean })?.cancelled) {
-                console.log('Query cancelled by user');
+                console.log("Query cancelled by user");
                 setIsStreaming(false);
                 setIsThinking(false);
-                
-                // 如果有累積的訊息內容，標記為已取消
+
+                // If there is accumulated message content, mark it as cancelled
                 if (currentAssistantMessage.trim()) {
                   const cancelledMessage: Message = {
                     id: assistantMessageId,
-                    role: 'assistant',
+                    role: "assistant",
                     content: currentAssistantMessage,
                     timestamp: new Date(),
-                    status: 'sent',
-                    isCancelled: true
+                    status: "sent",
+                    isCancelled: true,
                   };
-                  setMessages(prev => [...prev, cancelledMessage]);
+                  setMessages((prev) => [...prev, cancelledMessage]);
                 }
-                
-                // 添加系統取消訊息
+
+                // Add system cancellation message
                 const systemMessage: Message = {
                   id: uuidv4(),
-                  role: 'system',
-                  content: t('chat.status.cancelledByUser', 'Cancelled by user'),
+                  role: "system",
+                  content: t(
+                    "chat.status.cancelledByUser",
+                    "Cancelled by user",
+                  ),
                   timestamp: new Date(),
-                  status: 'sent'
+                  status: "sent",
                 };
-                setMessages(prev => [...prev, systemMessage]);
-                setCurrentAssistantMessage('');
+                setMessages((prev) => [...prev, systemMessage]);
+                setCurrentAssistantMessage("");
               } else {
-                console.log('Query completed normally');
+                console.log("Query completed normally");
                 setIsStreaming(false);
                 setIsThinking(false);
-                // 如果有累積的訊息內容，建立最終訊息
+                // If there is accumulated message content, create final message
                 if (currentAssistantMessage.trim()) {
                   const finalMessage: Message = {
                     id: assistantMessageId,
-                    role: 'assistant',
+                    role: "assistant",
                     content: currentAssistantMessage,
                     timestamp: new Date(),
-                    status: 'sent'
+                    status: "sent",
                   };
-                  setMessages(prev => [...prev, finalMessage]);
-                  setCurrentAssistantMessage('');
+                  setMessages((prev) => [...prev, finalMessage]);
+                  setCurrentAssistantMessage("");
                 }
               }
               break;
 
-            case 'error':
+            case "error":
               setIsStreaming(false);
               setIsThinking(false);
-              
-              // 改善錯誤處理，避免顯示空物件
-              let errorMsg = t('chat.error.unknown');
+
+              // Improve error handling to avoid displaying empty objects
+              let errorMsg = t("chat.error.unknown");
               const errorData = event.data as { error?: string | unknown };
               if (errorData?.error) {
-                errorMsg = typeof errorData.error === 'string' ? errorData.error : t('chat.error.unknown');
+                errorMsg =
+                  typeof errorData.error === "string"
+                    ? errorData.error
+                    : t("chat.error.unknown");
               }
-              
-              // 檢查是否為取消相關的錯誤
-              const isCancelledError = errorMsg.includes('cancelled') || 
-                                     errorMsg.includes('aborted') || 
-                                     errorMsg.includes('Request was cancelled') ||
-                                     (event.data && typeof event.data === 'object' && event.data && Object.keys(event.data).length === 0); // 空物件通常表示取消
-              
+
+              // Check if this is a cancellation-related error
+              const isCancelledError =
+                errorMsg.includes("cancelled") ||
+                errorMsg.includes("aborted") ||
+                errorMsg.includes("Request was cancelled") ||
+                (event.data &&
+                  typeof event.data === "object" &&
+                  event.data &&
+                  Object.keys(event.data).length === 0); // Empty object usually indicates cancellation
+
               if (isCancelledError) {
-                console.log('Request was cancelled or aborted');
+                console.log("Request was cancelled or aborted");
                 return;
               }
-              
-              // 只有非取消錯誤才記錄和顯示
-              console.error('[ChatPanel] Query failed:', {
+
+              // Only log and display non-cancellation errors
+              console.error("[ChatPanel] Query failed:", {
                 error: errorMsg,
                 sessionId: claudeSessionRef.current,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
               });
-              message.error(`${t('chat.error.query')}: ${errorMsg || '未知錯誤'}`);
+              message.error(
+                `${t("chat.error.query")}: ${errorMsg || "Unknown error"}`,
+              );
               break;
           }
         },
-        claudeSessionRef.current // 傳入瀏覽器端的 session ID
+        claudeSessionRef.current, // Pass browser-side session ID
       );
-
     } catch (error) {
-      console.error('[ChatPanel] Message send failed:', {
+      console.error("[ChatPanel] Message send failed:", {
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
         sessionId: claudeSessionRef.current,
         messageLength: messageContent.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       setIsStreaming(false);
       setIsThinking(false);
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === newMessage.id ? { ...msg, status: 'error' as const } : msg
-        )
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === newMessage.id ? { ...msg, status: "error" as const } : msg,
+        ),
       );
-      
-      const errorMessage = error instanceof Error 
-        ? `發送失敗: ${error.message}` 
-        : `發送失敗: ${t('chat.error.send')}`;
+
+      const errorMessage =
+        error instanceof Error
+          ? `Send failed: ${error.message}`
+          : `Send failed: ${t("chat.error.send")}`;
       message.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 處理取消訊息發送
+  // Handle message send cancellation
   const handleCancelMessage = () => {
     claudeCodeService.cancelCurrentRequest(claudeSessionRef.current);
-    
-    // 如果有正在進行的助手訊息，將其標記為已取消
-    if (currentAssistantMessageId && (currentAssistantMessage.trim() || isThinking)) {
+
+    // If there is an ongoing assistant message, mark it as cancelled
+    if (
+      currentAssistantMessageId &&
+      (currentAssistantMessage.trim() || isThinking)
+    ) {
       const cancelledMessage: Message = {
         id: currentAssistantMessageId,
-        role: 'assistant',
-        content: currentAssistantMessage.trim() || '',
+        role: "assistant",
+        content: currentAssistantMessage.trim() || "",
         timestamp: new Date(),
-        status: 'sent',
-        isCancelled: true
+        status: "sent",
+        isCancelled: true,
       };
-      
-      setMessages(prev => [...prev, cancelledMessage]);
-      
-      // 添加系統取消訊息
+
+      setMessages((prev) => [...prev, cancelledMessage]);
+
+      // Add system cancellation message
       const systemCancelMessage: Message = {
         id: uuidv4(),
-        role: 'system',
-        content: t('chat.status.cancelledByUser', 'Cancelled by user'),
+        role: "system",
+        content: t("chat.status.cancelledByUser", "Cancelled by user"),
         timestamp: new Date(),
-        status: 'sent'
+        status: "sent",
       };
-      
-      setMessages(prev => [...prev, systemCancelMessage]);
+
+      setMessages((prev) => [...prev, systemCancelMessage]);
     } else {
-      // 如果沒有正在進行的消息，只顯示取消通知
-      message.info(t('chat.status.cancelled', '已取消請求'));
+      // If there is no ongoing message, just show cancellation notification
+      message.info(t("chat.status.cancelled", "已取消請求"));
     }
-    
-    // 重置所有狀態
+
+    // Reset all states
     setIsLoading(false);
     setIsStreaming(false);
     setIsThinking(false);
-    setCurrentAssistantMessage('');
-    setCurrentAssistantMessageId('');
-    setToolActivities(new Map()); // 清空操作，不需要記憶體管理
+    setCurrentAssistantMessage("");
+    setCurrentAssistantMessageId("");
+    setToolActivities(new Map()); // Clear operations, no memory management needed
   };
 
-  // 處理 SDK 訊息
-  const handleSDKMessage = (sdkMessage: SDKMessage, assistantMessageId: string) => {
+  // Handle SDK messages
+  const handleSDKMessage = (
+    sdkMessage: SDKMessage,
+    assistantMessageId: string,
+  ) => {
     switch (sdkMessage.type) {
-      case 'assistant':
-        // 處理工具使用
-        if (sdkMessage.message.content && Array.isArray(sdkMessage.message.content)) {
+      case "assistant":
+        // Handle tool usage
+        if (
+          sdkMessage.message.content &&
+          Array.isArray(sdkMessage.message.content)
+        ) {
           for (const contentItem of sdkMessage.message.content) {
-            if (typeof contentItem === 'object' && contentItem.type === 'tool_use') {
-              // 添加新的工具活動
+            if (
+              typeof contentItem === "object" &&
+              contentItem.type === "tool_use"
+            ) {
+              // Add new tool activity
               const newActivity: ToolActivity = {
                 toolName: contentItem.name,
                 toolInput: contentItem.input,
-                status: 'running',
-                timestamp: new Date()
+                status: "running",
+                timestamp: new Date(),
               };
-              
-              updateToolActivities(prev => {
+
+              updateToolActivities((prev) => {
                 const current = prev.get(assistantMessageId) || [];
                 const updated = new Map(prev);
                 updated.set(assistantMessageId, [...current, newActivity]);
                 return updated;
               });
-            } else if (typeof contentItem === 'object' && contentItem.type === 'text') {
-              // 處理文字內容 - 當收到文字內容時停止思考動畫
+            } else if (
+              typeof contentItem === "object" &&
+              contentItem.type === "text"
+            ) {
+              // Handle text content - stop thinking animation when text content is received
               if (contentItem.text) {
                 setIsThinking(false);
-                setCurrentAssistantMessage(prev => prev + contentItem.text);
+                setCurrentAssistantMessage((prev) => prev + contentItem.text);
               }
             }
           }
-        } else if (typeof sdkMessage.message.content === 'string') {
-          // 當收到文字內容時停止思考動畫
+        } else if (typeof sdkMessage.message.content === "string") {
+          // Stop thinking animation when text content is received
           setIsThinking(false);
-          setCurrentAssistantMessage(prev => prev + sdkMessage.message.content);
+          setCurrentAssistantMessage(
+            (prev) => prev + sdkMessage.message.content,
+          );
         }
         break;
-        
-      case 'user':
-        // 更新工具狀態為已完成
-        if (sdkMessage.message.content && Array.isArray(sdkMessage.message.content)) {
+
+      case "user":
+        // Update tool status to completed
+        if (
+          sdkMessage.message.content &&
+          Array.isArray(sdkMessage.message.content)
+        ) {
           for (const contentItem of sdkMessage.message.content) {
-            if (typeof contentItem === 'object' && contentItem.type === 'tool_result') {
-              updateToolActivities(prev => {
+            if (
+              typeof contentItem === "object" &&
+              contentItem.type === "tool_result"
+            ) {
+              updateToolActivities((prev) => {
                 const current = prev.get(assistantMessageId) || [];
                 const updated = new Map(prev);
-                const newActivities = current.map(activity => {
-                  // 找到對應的工具活動並更新狀態
-                  if (activity.status === 'running') {
-                    return { ...activity, status: 'completed' as const };
+                const newActivities = current.map((activity) => {
+                  // Find corresponding tool activity and update status
+                  if (activity.status === "running") {
+                    return { ...activity, status: "completed" as const };
                   }
                   return activity;
                 });
@@ -465,35 +539,35 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           }
         }
         break;
-        
-      case 'result':
-        if (sdkMessage.subtype === 'success') {
+
+      case "result":
+        if (sdkMessage.subtype === "success") {
           const finalMessage: Message = {
             id: assistantMessageId,
-            role: 'assistant',
+            role: "assistant",
             content: sdkMessage.result,
             timestamp: new Date(),
-            status: 'sent'
+            status: "sent",
           };
-          setMessages(prev => [...prev, finalMessage]);
-          setCurrentAssistantMessage('');
+          setMessages((prev) => [...prev, finalMessage]);
+          setCurrentAssistantMessage("");
         } else {
           const errorMessage: Message = {
             id: uuidv4(),
-            role: 'system',
-            content: `${t('chat.error.execution')} ${sdkMessage.subtype}`,
+            role: "system",
+            content: `${t("chat.error.execution")} ${sdkMessage.subtype}`,
             timestamp: new Date(),
-            status: 'error'
+            status: "error",
           };
-          setMessages(prev => [...prev, errorMessage]);
-          
-          // 將進行中的工具活動標記為錯誤
-          updateToolActivities(prev => {
+          setMessages((prev) => [...prev, errorMessage]);
+
+          // Mark ongoing tool activities as error
+          updateToolActivities((prev) => {
             const current = prev.get(assistantMessageId) || [];
             const updated = new Map(prev);
-            const newActivities = current.map(activity => {
-              if (activity.status === 'running') {
-                return { ...activity, status: 'error' as const };
+            const newActivities = current.map((activity) => {
+              if (activity.status === "running") {
+                return { ...activity, status: "error" as const };
               }
               return activity;
             });
@@ -502,15 +576,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           });
         }
         break;
-        
-      case 'system':
-        console.log('System message:', sdkMessage);
+
+      case "system":
+        console.log("System message:", sdkMessage);
         break;
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -521,57 +595,57 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       id: uuidv4(),
       name: file.name,
       type: file.type,
-      size: file.size
+      size: file.size,
     };
-    
-    setAttachments(prev => [...prev, attachment]);
+
+    setAttachments((prev) => [...prev, attachment]);
     fileInputRef.current.push(file);
-    return false; // 阻止自動上傳
+    return false; // Prevent automatic upload
   };
 
   const removeAttachment = (id: string) => {
-    const attachmentIndex = attachments.findIndex(att => att.id === id);
+    const attachmentIndex = attachments.findIndex((att) => att.id === id);
     if (attachmentIndex !== -1) {
-      // 同時移除檔案引用
+      // Also remove file reference
       fileInputRef.current.splice(attachmentIndex, 1);
     }
-    setAttachments(prev => prev.filter(att => att.id !== id));
+    setAttachments((prev) => prev.filter((att) => att.id !== id));
   };
 
   const panelStyle = {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    backgroundColor: darkMode ? '#1f1f1f' : '#fff',
-    border: darkMode ? '1px solid #303030' : '1px solid #d9d9d9'
+    height: "100%",
+    display: "flex",
+    flexDirection: "column" as const,
+    backgroundColor: darkMode ? "#1f1f1f" : "#fff",
+    border: darkMode ? "1px solid #303030" : "1px solid #d9d9d9",
   };
 
   const headerStyle = {
-    padding: '12px 16px',
-    borderBottom: darkMode ? '1px solid #303030' : '1px solid #f0f0f0',
-    backgroundColor: darkMode ? '#141414' : '#fafafa'
+    padding: "12px 16px",
+    borderBottom: darkMode ? "1px solid #303030" : "1px solid #f0f0f0",
+    backgroundColor: darkMode ? "#141414" : "#fafafa",
   };
 
   const messagesStyle = {
     flex: 1,
-    overflow: 'auto',
-    padding: '16px',
-    backgroundColor: darkMode ? '#1a1a1a' : '#fafafa',
+    overflow: "auto",
+    padding: "16px",
+    backgroundColor: darkMode ? "#1a1a1a" : "#fafafa",
     fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-    fontSize: '14px'
+    fontSize: "14px",
   };
 
   const inputAreaStyle = {
-    padding: '16px',
-    borderTop: darkMode ? '1px solid #303030' : '1px solid #f0f0f0',
-    backgroundColor: darkMode ? '#141414' : '#fafafa'
+    padding: "16px",
+    borderTop: darkMode ? "1px solid #303030" : "1px solid #f0f0f0",
+    backgroundColor: darkMode ? "#141414" : "#fafafa",
   };
 
   if (isAuthenticated === null) {
     return (
       <div style={panelStyle}>
-        <div style={{ ...headerStyle, textAlign: 'center' }}>
-          <Spin size="small" /> {t('chat.status.checking')}
+        <div style={{ ...headerStyle, textAlign: "center" }}>
+          <Spin size="small" /> {t("chat.status.checking")}
         </div>
       </div>
     );
@@ -581,17 +655,30 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
     return (
       <div style={panelStyle}>
         <div style={headerStyle}>
-          <span style={{ color: darkMode ? '#ff4d4f' : '#ff4d4f', fontSize: '14px' }}>
-            ⚠ {t('chat.auth.required')}
+          <span
+            style={{
+              color: darkMode ? "#ff4d4f" : "#ff4d4f",
+              fontSize: "14px",
+            }}
+          >
+            ⚠ {t("chat.auth.required")}
           </span>
         </div>
-        <div style={{ ...messagesStyle, textAlign: 'center', color: darkMode ? '#999' : '#666' }}>
-          <p>{t('chat.auth.instruction')}</p>
-          <code style={{ 
-            backgroundColor: darkMode ? '#262626' : '#f5f5f5',
-            padding: '4px 8px',
-            borderRadius: '4px'
-          }}>
+        <div
+          style={{
+            ...messagesStyle,
+            textAlign: "center",
+            color: darkMode ? "#999" : "#666",
+          }}
+        >
+          <p>{t("chat.auth.instruction")}</p>
+          <code
+            style={{
+              backgroundColor: darkMode ? "#262626" : "#f5f5f5",
+              padding: "4px 8px",
+              borderRadius: "4px",
+            }}
+          >
             claude login
           </code>
         </div>
@@ -604,22 +691,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       {/* Header */}
       <div style={headerStyle}>
         <Space>
-          <RobotOutlined style={{ color: darkMode ? '#52c41a' : '#52c41a' }} />
-          <span style={{ fontWeight: 500, color: darkMode ? '#fff' : '#000' }}>
+          <RobotOutlined style={{ color: darkMode ? "#52c41a" : "#52c41a" }} />
+          <span style={{ fontWeight: 500, color: darkMode ? "#fff" : "#000" }}>
             Claude Code
           </span>
           <span
             style={{
-              display: 'inline-block',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              backgroundColor: isAuthenticated ? '#52c41a' : '#ff4d4f', // 綠色表示已連接，紅色表示未連接
-              cursor: 'pointer'
+              display: "inline-block",
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              backgroundColor: isAuthenticated ? "#52c41a" : "#ff4d4f", // Green indicates connected, red indicates not connected
+              cursor: "pointer",
             }}
-            title={isAuthenticated 
-              ? (isStreaming ? t('chat.status.processing') : t('chat.status.ready'))
-              : t('chat.auth.required')
+            title={
+              isAuthenticated
+                ? isStreaming
+                  ? t("chat.status.processing")
+                  : t("chat.status.ready")
+                : t("chat.auth.required")
             }
           />
         </Space>
@@ -627,7 +717,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
 
       {/* Messages Area */}
       <div style={messagesStyle}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           {messages.map((message) => (
             <MessageBubble
               key={message.id}
@@ -637,30 +727,30 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
             />
           ))}
 
-          {/* 顯示 AI 思考動畫 */}
+          {/* Display AI thinking animation */}
           {isThinking && (
             <MessageBubble
               message={{
-                id: 'thinking',
-                role: 'assistant',
-                content: '...',
+                id: "thinking",
+                role: "assistant",
+                content: "...",
                 timestamp: new Date(),
-                status: 'sending'
+                status: "sending",
               }}
               darkMode={darkMode}
               isStreaming={true}
             />
           )}
 
-          {/* 顯示正在串流的助理訊息 */}
+          {/* Display streaming assistant message */}
           {isStreaming && currentAssistantMessage && !isThinking && (
             <MessageBubble
               message={{
                 id: currentAssistantMessageId,
-                role: 'assistant',
+                role: "assistant",
                 content: currentAssistantMessage,
                 timestamp: new Date(),
-                status: 'sending'
+                status: "sending",
               }}
               toolActivities={toolActivities.get(currentAssistantMessageId)}
               darkMode={darkMode}
@@ -675,39 +765,45 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
       <div style={inputAreaStyle}>
         {/* Current File Indicator */}
         {currentFile && (
-          <div style={{
-            marginBottom: '8px',
-            padding: '6px 12px',
-            backgroundColor: darkMode ? '#1a1a1a' : '#f0f8ff',
-            borderLeft: `3px solid ${darkMode ? '#1890ff' : '#1890ff'}`,
-            borderRadius: '4px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span style={{ 
-              color: darkMode ? '#1890ff' : '#1890ff',
-              fontWeight: '500'
-            }}>
-              📄 {t('chat.fileContext.current')}
+          <div
+            style={{
+              marginBottom: "8px",
+              padding: "6px 12px",
+              backgroundColor: darkMode ? "#1a1a1a" : "#f0f8ff",
+              borderLeft: `3px solid ${darkMode ? "#1890ff" : "#1890ff"}`,
+              borderRadius: "4px",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span
+              style={{
+                color: darkMode ? "#1890ff" : "#1890ff",
+                fontWeight: "500",
+              }}
+            >
+              📄 {t("chat.fileContext.current")}
             </span>
-            <span style={{ 
-              color: darkMode ? '#e6e6e6' : '#333',
-              fontFamily: 'Monaco, Consolas, "Courier New", monospace'
-            }}>
+            <span
+              style={{
+                color: darkMode ? "#e6e6e6" : "#333",
+                fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+              }}
+            >
               {currentFile.name}
             </span>
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               size="small"
               onClick={() => setCurrentFile(null)}
-              style={{ 
-                padding: '0 4px', 
-                marginLeft: 'auto',
-                color: darkMode ? '#888' : '#666'
+              style={{
+                padding: "0 4px",
+                marginLeft: "auto",
+                color: darkMode ? "#888" : "#666",
               }}
-              title={t('chat.fileContext.clear')}
+              title={t("chat.fileContext.clear")}
             >
               ×
             </Button>
@@ -716,23 +812,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
 
         {/* Attachments Preview */}
         {attachments.length > 0 && (
-          <div style={{ marginBottom: '8px' }}>
-            {attachments.map(att => (
-              <div key={att.id} style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px 8px',
-                backgroundColor: darkMode ? '#262626' : '#f5f5f5',
-                borderRadius: '4px',
-                marginRight: '8px',
-                fontSize: '12px'
-              }}>
-                <span style={{ color: darkMode ? '#e6e6e6' : '#000' }}>📎 {att.name}</span>
-                <Button 
-                  type="text" 
-                  size="small" 
+          <div style={{ marginBottom: "8px" }}>
+            {attachments.map((att) => (
+              <div
+                key={att.id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "4px 8px",
+                  backgroundColor: darkMode ? "#262626" : "#f5f5f5",
+                  borderRadius: "4px",
+                  marginRight: "8px",
+                  fontSize: "12px",
+                }}
+              >
+                <span style={{ color: darkMode ? "#e6e6e6" : "#000" }}>
+                  📎 {att.name}
+                </span>
+                <Button
+                  type="text"
+                  size="small"
                   onClick={() => removeAttachment(att.id)}
-                  style={{ padding: '0 4px', marginLeft: '4px' }}
+                  style={{ padding: "0 4px", marginLeft: "4px" }}
                 >
                   ×
                 </Button>
@@ -741,74 +842,84 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ darkMode = false, classNam
           </div>
         )}
 
-        <Space.Compact style={{ width: '100%' }}>
+        <Space.Compact style={{ width: "100%" }}>
           <TextArea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={t('chat.input.placeholder')}
+            placeholder={t("chat.input.placeholder")}
             autoSize={{ minRows: 1, maxRows: 4 }}
-            style={{ 
+            style={{
               flex: 1,
-              backgroundColor: darkMode ? '#1f1f1f' : '#fff',
-              borderColor: darkMode ? '#303030' : '#d9d9d9',
-              color: darkMode ? '#fff' : '#000',
-              resize: 'none'
+              backgroundColor: darkMode ? "#1f1f1f" : "#fff",
+              borderColor: darkMode ? "#303030" : "#d9d9d9",
+              color: darkMode ? "#fff" : "#000",
+              resize: "none",
             }}
             disabled={isLoading}
           />
-          {/* 檔案上傳功能暫時隱藏 - 詳見 TODO.md Feature #3 */}
+          {/* File upload feature temporarily hidden - See TODO.md Feature #3 */}
           {false && (
             <Upload
               beforeUpload={handleFileUpload}
               showUploadList={false}
               multiple
             >
-              <Button 
-                icon={<PaperClipOutlined />} 
+              <Button
+                icon={<PaperClipOutlined />}
                 disabled={isLoading}
                 style={{
-                  backgroundColor: darkMode ? '#262626' : '#f5f5f5',
-                  borderColor: darkMode ? '#303030' : '#d9d9d9',
-                  color: darkMode ? '#fff' : '#000'
+                  backgroundColor: darkMode ? "#262626" : "#f5f5f5",
+                  borderColor: darkMode ? "#303030" : "#d9d9d9",
+                  color: darkMode ? "#fff" : "#000",
                 }}
               />
             </Upload>
           )}
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={isLoading ? <CloseOutlined /> : <SendOutlined />}
             onClick={isLoading ? handleCancelMessage : handleSendMessage}
             loading={false}
-            disabled={!isLoading && (!inputValue.trim() && attachments.length === 0)}
-            title={isLoading ? t('chat.action.cancel', '取消') : t('chat.action.send', '發送')}
+            disabled={
+              !isLoading && !inputValue.trim() && attachments.length === 0
+            }
+            title={
+              isLoading
+                ? t("chat.action.cancel", "取消")
+                : t("chat.action.send", "發送")
+            }
           />
         </Space.Compact>
-        
-        {/* 輸入提示 */}
-        <div style={{
-          marginTop: '4px',
-          fontSize: '11px',
-          color: darkMode ? '#888' : '#999',
-          textAlign: 'center'
-        }}>
-          {t('chat.input.shortcut')}
+
+        {/* Input hint */}
+        <div
+          style={{
+            marginTop: "4px",
+            fontSize: "11px",
+            color: darkMode ? "#888" : "#999",
+            textAlign: "center",
+          }}
+        >
+          {t("chat.input.shortcut")}
         </div>
-        
+
         {/* Session ID */}
-        <div style={{
-          marginTop: '4px',
-          marginBottom: '-12px',
-          fontSize: '8px',
-          color: darkMode ? '#666' : '#aaa',
-          textAlign: 'center',
-          fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-          // fontStyle: 'italic'
-        }}>
+        <div
+          style={{
+            marginTop: "4px",
+            marginBottom: "-12px",
+            fontSize: "8px",
+            color: darkMode ? "#666" : "#aaa",
+            textAlign: "center",
+            fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+            // fontStyle: 'italic'
+          }}
+        >
           {claudeSessionRef.current ? (
             <>SESSION-ID: {claudeSessionRef.current}</>
           ) : (
-            <>&nbsp;</> // 保留空間但不顯示內容，直到獲得真實 session ID
+            <>&nbsp;</> // Reserve space but don't display content until actual session ID is obtained
           )}
         </div>
       </div>

@@ -1,14 +1,14 @@
 /**
- * 檔案監控 SSE API
+ * File Watch SSE API
  *
- * 提供 Server-Sent Events 來即時通知客戶端檔案變更
+ * Provides Server-Sent Events for real-time file change notifications to clients
  */
 import { NextRequest, NextResponse } from "next/server";
 import chokidar, { type FSWatcher } from "chokidar";
 import { existsSync } from "fs";
 import path from "path";
 
-// 儲存活躍的監控器
+// Store active watchers
 const activeWatchers = new Map<string, FSWatcher>();
 const clientConnections = new Map<string, ReadableStreamDefaultController>();
 
@@ -28,12 +28,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 建構完整路徑
+    // Construct full path
     const fullPath = path.isAbsolute(filePath)
       ? filePath
       : path.join(basePath, filePath);
 
-    // 檢查檔案是否存在
+    // Check if file exists
     if (!existsSync(fullPath)) {
       return NextResponse.json(
         { success: false, error: "File not found" },
@@ -43,13 +43,13 @@ export async function GET(request: NextRequest) {
 
     console.log("[FileWatch SSE] Starting file watch for:", fullPath);
 
-    // 建立 SSE 串流
+    // Create SSE stream
     const stream = new ReadableStream({
       start(controller) {
         const watcherId = Math.random().toString(36).substr(2, 9);
         clientConnections.set(watcherId, controller);
 
-        // 初始化連接
+        // Initialize connection
         controller.enqueue(
           `data: ${JSON.stringify({
             type: "connected",
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
           })}\n\n`,
         );
 
-        // 開始監控檔案
+        // Start watching file
         const watcher = chokidar.watch(fullPath, {
           persistent: true,
           ignoreInitial: true,
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           followSymlinks: false,
         });
 
-        // 檔案變更事件
+        // File change event
         watcher.on("change", () => {
           console.log("[FileWatch SSE] File changed:", fullPath);
           controller.enqueue(
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
           );
         });
 
-        // 檔案刪除事件
+        // File delete event
         watcher.on("unlink", () => {
           console.log("[FileWatch SSE] File deleted:", fullPath);
           controller.enqueue(
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
           );
         });
 
-        // 檔案新增事件（重新建立）
+        // File add event (recreated)
         watcher.on("add", (path: string) => {
           console.log("[FileWatch SSE] File added:", path);
           controller.enqueue(
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           );
         });
 
-        // 監控錯誤
+        // Watcher error
         watcher.on("error", (err: unknown) => {
           const error = err instanceof Error ? err : new Error(String(err));
           console.error("[FileWatch SSE] Watcher error:", error);
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
         activeWatchers.set(watcherId, watcher);
 
-        // 處理連接關閉
+        // Handle connection close
         const cleanup = () => {
           console.log("[FileWatch SSE] Cleaning up watcher:", watcherId);
           watcher.close();
@@ -130,10 +130,10 @@ export async function GET(request: NextRequest) {
           clientConnections.delete(watcherId);
         };
 
-        // 監聽連接關閉
+        // Listen for connection close
         request.signal?.addEventListener("abort", cleanup);
 
-        // 設置定時心跳檢測（可選）
+        // Setup periodic heartbeat check (optional)
         const heartbeat = setInterval(() => {
           try {
             controller.enqueue(
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
             clearInterval(heartbeat);
             cleanup();
           }
-        }, 30000); // 30秒心跳
+        }, 30000); // 30 second heartbeat
       },
 
       cancel() {
@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 清理所有監控器的工具函數（用於程序退出時）
+// Utility function to clean up all watchers (for process exit)
 function cleanupAllWatchers() {
   console.log("[FileWatch SSE] Cleaning up all watchers...");
 
@@ -192,7 +192,7 @@ function cleanupAllWatchers() {
   clientConnections.clear();
 }
 
-// 處理程序退出時的清理
+// Handle cleanup on process exit
 if (typeof process !== "undefined") {
   process.on("SIGINT", cleanupAllWatchers);
   process.on("SIGTERM", cleanupAllWatchers);
